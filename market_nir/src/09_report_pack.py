@@ -41,6 +41,14 @@ def main() -> None:
         art / "plots" / "equity_distilbert_test.png",
         art / "plots" / "drawdown_baseline_tfidf_lr_test.png",
         art / "plots" / "drawdown_distilbert_test.png",
+        art / "plots" / "mc_hist_cum_return_baseline_tfidf_lr_test.png",
+        art / "plots" / "mc_hist_sharpe_baseline_tfidf_lr_test.png",
+        art / "plots" / "pred_vs_real_overlay_baseline_tfidf_lr_test.png",
+        art / "plots" / "pred_vs_real_scatter_baseline_tfidf_lr_test.png",
+        art / "plots" / "mc_hist_cum_return_distilbert_test.png",
+        art / "plots" / "mc_hist_sharpe_distilbert_test.png",
+        art / "plots" / "pred_vs_real_overlay_distilbert_test.png",
+        art / "plots" / "pred_vs_real_scatter_distilbert_test.png",
     ]
 
     copied_figs = []
@@ -54,6 +62,8 @@ def main() -> None:
         art / "metrics" / "ablation_summary.csv",
         art / "metrics" / "backtest_baseline_tfidf_lr_test.json",
         art / "metrics" / "backtest_distilbert_test.json",
+        art / "metrics" / "monte_carlo_baseline_tfidf_lr_test.json",
+        art / "metrics" / "monte_carlo_distilbert_test.json",
         art / "metrics" / "baseline_tfidf_lr_metrics.json",
         art / "metrics" / "distilbert_metrics.json",
         art / "metrics" / "03_split_stats.json",
@@ -97,6 +107,19 @@ def main() -> None:
         b = read_json(bt_base_path)
         lines.append(
             f"- Baseline backtest(test): cum_return={b['cum_return']:.6f}, sharpe={b['event_sharpe']:.4f}, mdd={b['max_drawdown']:.6f}"
+        )
+
+    mc_dist_path = art / "metrics" / "monte_carlo_distilbert_test.json"
+    mc_base_path = art / "metrics" / "monte_carlo_baseline_tfidf_lr_test.json"
+    if mc_dist_path.exists():
+        m = read_json(mc_dist_path)
+        lines.append(
+            f"- DistilBERT Monte Carlo p-values: cum_return_p={m['p_values']['cum_return_right_tail']:.4f}, sharpe_p={m['p_values']['sharpe_right_tail']:.4f}"
+        )
+    if mc_base_path.exists():
+        m = read_json(mc_base_path)
+        lines.append(
+            f"- Baseline Monte Carlo p-values: cum_return_p={m['p_values']['cum_return_right_tail']:.4f}, sharpe_p={m['p_values']['sharpe_right_tail']:.4f}"
         )
 
     md_path = Path(out) / "REPORT_PACK_SUMMARY.md"

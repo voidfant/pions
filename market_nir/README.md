@@ -16,6 +16,7 @@ Run from repo root.
 ./venv/bin/python market_nir/src/06_eval_ml.py
 ./venv/bin/python market_nir/src/07_backtest_event.py --predictions market_nir/artifacts/predictions/baseline_tfidf_lr_predictions.parquet
 ./venv/bin/python market_nir/src/07_backtest_event.py --predictions market_nir/artifacts/predictions/distilbert_predictions.parquet
+./venv/bin/python market_nir/src/10_monte_carlo_test.py --predictions market_nir/artifacts/predictions/distilbert_predictions.parquet --split test --n-runs 3000
 ./venv/bin/python market_nir/src/09_report_pack.py
 ```
 
@@ -29,6 +30,7 @@ Run from repo root.
 - `06_eval_ml.py`: model comparison, confusion/calibration plots
 - `07_backtest_event.py`: event-driven backtest on model signals
 - `08_ablation_runner.py`: grid over horizon and threshold multiplier
+- `10_monte_carlo_test.py`: Monte Carlo significance test + prediction-vs-real plots
 - `09_report_pack.py`: collect metrics and plots for report integration
 
 ## Input contracts

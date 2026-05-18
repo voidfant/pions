@@ -1,0 +1,75 @@
+{
+  "model": "distilbert",
+  "model_name": "market_nir/models/distilbert-base-uncased",
+  "device": "cpu",
+  "rows": 4922,
+  "splits": {
+    "test": {
+      "accuracy": 0.6666666666666666,
+      "balanced_accuracy": 0.3438530555094972,
+      "macro_f1": 0.2971930358865032,
+      "weighted_f1": 0.553193591297333,
+      "precision_DOWN": 0.0,
+      "recall_DOWN": 0.0,
+      "f1_DOWN": 0.0,
+      "support_DOWN": 126.0,
+      "precision_FLAT": 0.6780141843971631,
+      "recall_FLAT": 0.9775051124744376,
+      "f1_FLAT": 0.8006700167504187,
+      "support_FLAT": 489.0,
+      "precision_UP": 0.2857142857142857,
+      "recall_UP": 0.05405405405405406,
+      "f1_UP": 0.09090909090909091,
+      "support_UP": 111.0
+    },
+    "train": {
+      "accuracy": 0.643598615916955,
+      "balanced_accuracy": 0.33432145495023297,
+      "macro_f1": 0.2806189837738732,
+      "weighted_f1": 0.5265054562610753,
+      "precision_DOWN": 0.0,
+      "recall_DOWN": 0.0,
+      "f1_DOWN": 0.0,
+      "support_DOWN": 626.0,
+      "precision_FLAT": 0.6607942669453568,
+      "recall_FLAT": 0.9689141856392294,
+      "f1_FLAT": 0.7857269660926682,
+      "support_FLAT": 2284.0,
+      "precision_UP": 0.15966386554621848,
+      "recall_UP": 0.034050179211469536,
+      "f1_UP": 0.056129985228951254,
+      "support_UP": 558.0
+    },
+    "val": {
+      "accuracy": 0.6964285714285714,
+      "balanced_accuracy": 0.3326169614812366,
+      "macro_f1": 0.29668830454395423,
+      "weighted_f1": 0.6052063900452063,
+      "precision_DOWN": 0.0,
+      "recall_DOWN": 0.0,
+      "f1_DOWN": 0.0,
+      "support_DOWN": 87.0,
+      "precision_FLAT": 0.723342939481268,
+      "recall_FLAT": 0.9543726235741445,
+      "f1_FLAT": 0.8229508196721311,
+      "support_FLAT": 526.0,
+      "precision_UP": 0.14705882352941177,
+      "recall_UP": 0.043478260869565216,
+      "f1_UP": 0.06711409395973154,
+      "support_UP": 115.0
+    }
+  },
+  "epochs_ran": 1,
+  "best_val_macro_f1": 0.29668830454395423,
+  "params": {
+    "batch_size": 16,
+    "lr": 2e-05,
+    "weight_decay": 0.01,
+    "max_len": 96,
+    "class_weight": [
+      1.8466453552246094,
+      0.5061296224594116,
+      2.0716845989227295
+    ]
+  }
+}

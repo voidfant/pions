@@ -1,0 +1,27 @@
+{
+  "model": "baseline_tfidf_lr",
+  "split": "test",
+  "tau": 0.15,
+  "cost": 0.0005,
+  "n_runs": 2000,
+  "observed": {
+    "cum_return": 0.029630231415022492,
+    "event_sharpe": 0.43928598606181674,
+    "max_drawdown": -0.0583014354709779,
+    "hit_rate": 0.4883720930232558,
+    "trades": 86,
+    "turnover": 0.1184573002754821
+  },
+  "mc": {
+    "cum_return_mean": -0.04995454876488819,
+    "cum_return_std": 0.0695133137714524,
+    "sharpe_mean": -0.7232027193907982,
+    "sharpe_std": 1.0014741879596234,
+    "mdd_mean": -0.10756717807089772,
+    "mdd_std": 0.045424797571967636
+  },
+  "p_values": {
+    "cum_return_right_tail": 0.1305,
+    "sharpe_right_tail": 0.1295
+  }
+}

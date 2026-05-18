@@ -1,0 +1,2 @@
+horizon,k,model,test_macro_f1,test_balanced_accuracy
+2h,1.0,baseline_tfidf_lr,0.27655893983962715,0.3519027353383182
