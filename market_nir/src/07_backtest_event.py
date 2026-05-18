@@ -16,6 +16,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--predictions", required=True, help="predictions parquet")
     p.add_argument("--split", default="test", choices=["train", "val", "test"])
     p.add_argument("--tau", type=float, default=0.15, help="threshold on score=prob_UP-prob_DOWN")
+    p.add_argument(
+        "--tau-quantile",
+        type=float,
+        default=None,
+        help="If set, tau is inferred as quantile of abs(score), e.g. 0.9 for top-10%% signals",
+    )
     p.add_argument("--cost", type=float, default=0.0005, help="cost per trade")
     p.add_argument("--out-dir", default="market_nir/artifacts")
     return p.parse_args()
@@ -38,7 +44,15 @@ def main() -> None:
         raise SystemExit("No rows for requested split")
 
     score = df["prob_UP"].values - df["prob_DOWN"].values
-    signal = np.where(score > args.tau, 1.0, np.where(score < -args.tau, -1.0, 0.0))
+    tau = float(args.tau)
+    if args.tau_quantile is not None:
+        q = float(args.tau_quantile)
+        if not (0.0 < q < 1.0):
+            raise SystemExit("--tau-quantile must be in (0, 1)")
+        tau = float(np.quantile(np.abs(score), q))
+        print(f"[info] tau inferred from |score| quantile q={q:.3f}: tau={tau:.6f}")
+
+    signal = np.where(score > tau, 1.0, np.where(score < -tau, -1.0, 0.0))
 
     ret = df["ret_h"].values.astype(float)
     pnl = signal * ret - args.cost * np.abs(signal)
@@ -52,11 +66,18 @@ def main() -> None:
     stats = {
         "model": model_name,
         "split": args.split,
-        "tau": float(args.tau),
+        "tau": tau,
+        "tau_input": float(args.tau),
+        "tau_quantile": None if args.tau_quantile is None else float(args.tau_quantile),
         "cost": float(args.cost),
         "rows": int(len(df)),
         "trades": int(traded.sum()),
         "turnover": float(traded.mean()),
+        "score_min": float(score.min()),
+        "score_max": float(score.max()),
+        "score_abs_q90": float(np.quantile(np.abs(score), 0.9)),
+        "score_abs_q95": float(np.quantile(np.abs(score), 0.95)),
+        "score_abs_q99": float(np.quantile(np.abs(score), 0.99)),
         "mean_pnl": float(np.mean(pnl)),
         "cum_return": float(equity[-1]),
         "event_sharpe": sharpe,
@@ -97,6 +118,12 @@ def main() -> None:
     fig.tight_layout()
     fig.savefig(out_dir / "plots" / f"drawdown_{model_name}_{args.split}.png", dpi=170)
     plt.close(fig)
+
+    if int(traded.sum()) == 0:
+        print(
+            "[warning] No trades were generated. "
+            "Try lower --tau or use --tau-quantile (e.g. 0.9 or 0.95)."
+        )
 
     print(stats)
 
