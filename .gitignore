@@ -1,2 +1,6 @@
 venv/
 __pycache__/
+backtest_distilbert_test.json
+backtest_distilbert_test.parquet
+drawdown_distilbert_test.png
+equity_distilbert_test.png
