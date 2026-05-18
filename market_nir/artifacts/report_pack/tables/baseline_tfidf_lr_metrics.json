@@ -1,0 +1,64 @@
+{
+  "model": "baseline_tfidf_lr",
+  "rows": 4922,
+  "splits": {
+    "test": {
+      "accuracy": 0.2878787878787879,
+      "balanced_accuracy": 0.3519027353383182,
+      "macro_f1": 0.27655893983962715,
+      "weighted_f1": 0.30776879228168763,
+      "precision_DOWN": 0.18874172185430463,
+      "recall_DOWN": 0.4523809523809524,
+      "f1_DOWN": 0.26635514018691586,
+      "support_DOWN": 126.0,
+      "precision_FLAT": 0.6707317073170732,
+      "recall_FLAT": 0.2249488752556237,
+      "f1_FLAT": 0.33690658499234305,
+      "support_FLAT": 489.0,
+      "precision_UP": 0.16153846153846155,
+      "recall_UP": 0.3783783783783784,
+      "f1_UP": 0.22641509433962265,
+      "support_UP": 111.0
+    },
+    "train": {
+      "accuracy": 0.32006920415224915,
+      "balanced_accuracy": 0.3866142155694758,
+      "macro_f1": 0.3090484552561131,
+      "weighted_f1": 0.3378174876504101,
+      "precision_DOWN": 0.2123602892833662,
+      "recall_DOWN": 0.5159744408945687,
+      "f1_DOWN": 0.3008849557522124,
+      "support_DOWN": 626.0,
+      "precision_FLAT": 0.7083854818523154,
+      "recall_FLAT": 0.2478108581436077,
+      "f1_FLAT": 0.36717482971132015,
+      "support_FLAT": 2284.0,
+      "precision_UP": 0.19250871080139373,
+      "recall_UP": 0.3960573476702509,
+      "f1_UP": 0.25908558030480655,
+      "support_UP": 558.0
+    },
+    "val": {
+      "accuracy": 0.2554945054945055,
+      "balanced_accuracy": 0.3271783626564411,
+      "macro_f1": 0.24124629133458583,
+      "weighted_f1": 0.28519930182296205,
+      "precision_DOWN": 0.109717868338558,
+      "recall_DOWN": 0.40229885057471265,
+      "f1_DOWN": 0.1724137931034483,
+      "support_DOWN": 87.0,
+      "precision_FLAT": 0.6708074534161491,
+      "recall_FLAT": 0.20532319391634982,
+      "f1_FLAT": 0.314410480349345,
+      "support_FLAT": 526.0,
+      "precision_UP": 0.17338709677419356,
+      "recall_UP": 0.3739130434782609,
+      "f1_UP": 0.2369146005509642,
+      "support_UP": 115.0
+    }
+  },
+  "params": {
+    "max_features": 40000,
+    "ngram_max": 2
+  }
+}

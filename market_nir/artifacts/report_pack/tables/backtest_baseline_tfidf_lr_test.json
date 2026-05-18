@@ -1,0 +1,14 @@
+{
+  "model": "baseline_tfidf_lr",
+  "split": "test",
+  "tau": 0.15,
+  "cost": 0.0005,
+  "rows": 726,
+  "trades": 86,
+  "turnover": 0.1184573002754821,
+  "mean_pnl": 4.0812990929783014e-05,
+  "cum_return": 0.029630231415022492,
+  "event_sharpe": 0.43928598606181674,
+  "max_drawdown": -0.0583014354709779,
+  "hit_rate": 0.4883720930232558
+}

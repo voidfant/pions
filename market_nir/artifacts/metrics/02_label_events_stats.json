@@ -1,0 +1,13 @@
+{
+  "rows_labeled": 4965,
+  "horizon": "2h",
+  "k": 1.0,
+  "vol_window": 96,
+  "label_distribution": {
+    "DOWN": 845,
+    "FLAT": 3330,
+    "UP": 790
+  },
+  "ret_h_mean": -7.976852610653107e-05,
+  "ret_h_std": 0.007501478097795307
+}

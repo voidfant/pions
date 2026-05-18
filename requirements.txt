@@ -1,0 +1,21 @@
+# Core numeric / ML
+numpy>=1.24,<3.0
+scipy>=1.10,<2.0
+
+# PyTorch stack
+# If needed, install torch/torchvision from the official selector:
+# https://pytorch.org/get-started/locally/
+torch>=2.2,<3.0
+torchvision>=0.17,<1.0
+
+# NLP (Transformer practices)
+transformers>=4.40,<5.0
+datasets>=2.18,<4.0
+
+# GAN / GNN reporting & visualization
+matplotlib>=3.8,<4.0
+networkx>=3.2,<4.0
+scikit-learn>=1.4,<2.0
+
+# Graph neural networks (pr_7, pr_8)
+torch-geometric>=2.5,<3.0
