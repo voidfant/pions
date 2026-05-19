@@ -8,3 +8,6 @@ market_nir/artifacts/metrics/
 market_nir/artifacts/models/
 market_nir/artifacts/plots/
 market_nir/artifacts/report_pack/
+market_nir/data/raw/gdelt/
+market_nir/data/raw/text_events_gdelt*.csv
+market_nir/data/processed/*gdelt*.parquet

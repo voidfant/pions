@@ -20,6 +20,43 @@ Run from repo root.
 ./venv/bin/python market_nir/src/09_report_pack.py
 ```
 
+## Real multi-GB dataset (GDELT)
+
+### 1) Download about 2+ GB of news-event dumps
+
+```bash
+./venv/bin/python market_nir/src/11_download_gdelt.py \
+  --dataset gkg \
+  --start-date 2024-01-01 \
+  --end-date 2024-03-31 \
+  --target-gb 2.0 \
+  --extract
+```
+
+- Raw archives: `market_nir/data/raw/gdelt/zips`
+- Extracted TSVs: `market_nir/data/raw/gdelt/extracted`
+- Manifest: `market_nir/data/raw/gdelt/manifest_gkg.csv`
+
+### 2) Build `text_events.csv` from GDELT GKG
+
+```bash
+./venv/bin/python market_nir/src/12_build_gdelt_events.py \
+  --input-dir market_nir/data/raw/gdelt/extracted \
+  --output market_nir/data/raw/text_events_gdelt.csv \
+  --ticker SPY \
+  --lang en
+```
+
+### 3) Run the existing market_nir pipeline on this dataset
+
+```bash
+./venv/bin/python market_nir/src/01_prepare_events.py --input market_nir/data/raw/text_events_gdelt.csv
+./venv/bin/python market_nir/src/02_label_events.py --market market_nir/data/raw/market_bars.csv --horizon 2h --k 1.0
+./venv/bin/python market_nir/src/03_split_time_purged.py --horizon 2h
+./venv/bin/python market_nir/src/04_train_baseline_tfidf.py
+./venv/bin/python market_nir/src/05_train_distilbert.py --epochs 6 --batch-size 16 --patience 2
+```
+
 ## Main scripts
 
 - `01_prepare_events.py`: basic cleaning and dedup for text events
@@ -32,6 +69,8 @@ Run from repo root.
 - `08_ablation_runner.py`: grid over horizon and threshold multiplier
 - `10_monte_carlo_test.py`: Monte Carlo significance test + prediction-vs-real plots
 - `09_report_pack.py`: collect metrics and plots for report integration
+- `11_download_gdelt.py`: downloader for large GDELT corpora (target by GB)
+- `12_build_gdelt_events.py`: convert extracted GDELT GKG files into `text_events.csv`
 
 ## Input contracts
 
