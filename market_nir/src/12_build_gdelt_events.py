@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -68,6 +69,12 @@ def compose_text(
 
 def main() -> None:
     args = parse_args()
+    # GDELT rows may contain very large text-like fields; raise CSV parser limit.
+    try:
+        csv.field_size_limit(sys.maxsize)
+    except OverflowError:
+        csv.field_size_limit(2**31 - 1)
+
     input_dir = Path(args.input_dir)
     files = sorted(input_dir.glob(args.pattern))
     if args.max_files > 0:
