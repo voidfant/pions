@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -33,16 +34,33 @@ def clean_field(value: str) -> str:
     return value.replace("\t", " ").replace("\n", " ").strip()
 
 
-def pick_first_nonempty(row: list[str], indexes: list[int]) -> str:
-    for idx in indexes:
-        if idx < len(row):
-            value = clean_field(row[idx])
-            if value:
-                return value
-    return ""
+def parse_semicolon_list(value: str, limit: int = 8) -> list[str]:
+    parts = [x.strip() for x in value.split(";") if x.strip()]
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in parts:
+        if "," in item:
+            item = item.split(",", 1)[0].strip()
+        item = item.replace("_", " ")
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        out.append(item)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def extract_page_title(extras_xml: str) -> str:
+    m = re.search(r"<PAGE_TITLE>(.*?)</PAGE_TITLE>", extras_xml, flags=re.IGNORECASE | re.DOTALL)
+    if not m:
+        return ""
+    title = re.sub(r"\s+", " ", m.group(1)).strip()
+    return title
 
 
 def compose_text(
+    title: str,
     themes: str,
     persons: str,
     orgs: str,
@@ -51,20 +69,33 @@ def compose_text(
     url: str,
 ) -> str:
     domain = urlparse(url).netloc.lower() if url else ""
+
+    themes_items = parse_semicolon_list(themes, limit=8)
+    persons_items = parse_semicolon_list(persons, limit=6)
+    orgs_items = parse_semicolon_list(orgs, limit=6)
+    locations_items = parse_semicolon_list(locations, limit=4)
+
+    tone_clean = clean_field(tone)
+    if "," in tone_clean:
+        tone_clean = tone_clean.split(",", 1)[0].strip()
+
     chunks: list[str] = []
-    if themes:
-        chunks.append(f"Themes: {themes}")
-    if persons:
-        chunks.append(f"Persons: {persons}")
-    if orgs:
-        chunks.append(f"Organizations: {orgs}")
-    if locations:
-        chunks.append(f"Locations: {locations}")
-    if tone:
-        chunks.append(f"Tone: {tone}")
+    if title:
+        chunks.append(f"Title: {title}")
     if domain:
-        chunks.append(f"Domain: {domain}")
-    return " | ".join(chunks)
+        chunks.append(f"Source: {domain}")
+    if themes_items:
+        chunks.append("Themes: " + ", ".join(themes_items))
+    if persons_items:
+        chunks.append("Persons: " + ", ".join(persons_items))
+    if orgs_items:
+        chunks.append("Organizations: " + ", ".join(orgs_items))
+    if locations_items:
+        chunks.append("Locations: " + ", ".join(locations_items))
+    if tone_clean:
+        chunks.append(f"Tone: {tone_clean}")
+    text = " | ".join(chunks)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def main() -> None:
@@ -85,17 +116,18 @@ def main() -> None:
     out_path = Path(args.output)
     ensure_dir(out_path.parent)
 
-    # GKG V2.1 common positions used here.
-    # The parser includes fallback indexes because some dumps expose slightly different layouts.
+    # GKG V2.x canonical column indexes (27 columns).
+    # We intentionally avoid GCAM/very-high-dimensional columns in text composition.
     idx_date = 1
-    idx_source_primary = [3, 4]
-    idx_url_primary = [4, 5]
-    idx_themes_primary = [7, 15]
-    idx_locations_primary = [9, 17]
-    idx_persons_primary = [11, 19]
-    idx_orgs_primary = [13, 21]
-    idx_tone_primary = [15, 23]
-    max_idx_guard = max(idx_tone_primary)
+    idx_source = 3
+    idx_url = 4
+    idx_themes = 7
+    idx_locations = 9
+    idx_persons = 11
+    idx_orgs = 13
+    idx_tone = 15
+    idx_extras = 26
+    max_idx_guard = max(idx_extras, idx_tone)
 
     kept = 0
     seen_ids: set[str] = set()
@@ -127,15 +159,17 @@ def main() -> None:
                     if len(ts_raw) != 14 or not ts_raw.isdigit():
                         continue
 
-                    source = pick_first_nonempty(row, idx_source_primary)
-                    url = pick_first_nonempty(row, idx_url_primary)
-                    themes = pick_first_nonempty(row, idx_themes_primary)
-                    locations = pick_first_nonempty(row, idx_locations_primary)
-                    persons = pick_first_nonempty(row, idx_persons_primary)
-                    orgs = pick_first_nonempty(row, idx_orgs_primary)
-                    tone = pick_first_nonempty(row, idx_tone_primary)
+                    source = clean_field(row[idx_source]) if idx_source < len(row) else ""
+                    url = clean_field(row[idx_url]) if idx_url < len(row) else ""
+                    themes = clean_field(row[idx_themes]) if idx_themes < len(row) else ""
+                    locations = clean_field(row[idx_locations]) if idx_locations < len(row) else ""
+                    persons = clean_field(row[idx_persons]) if idx_persons < len(row) else ""
+                    orgs = clean_field(row[idx_orgs]) if idx_orgs < len(row) else ""
+                    tone = clean_field(row[idx_tone]) if idx_tone < len(row) else ""
+                    extras = clean_field(row[idx_extras]) if idx_extras < len(row) else ""
+                    title = extract_page_title(extras)
                     source = source or (urlparse(url).netloc.lower() if url else "gdelt")
-                    text = compose_text(themes, persons, orgs, locations, tone, url)
+                    text = compose_text(title, themes, persons, orgs, locations, tone, url)
                     if len(text) < args.min_text_len:
                         continue
 
