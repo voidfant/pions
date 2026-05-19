@@ -4,3 +4,7 @@ backtest_distilbert_test.json
 backtest_distilbert_test.parquet
 drawdown_distilbert_test.png
 equity_distilbert_test.png
+market_nir/artifacts/metrics/
+market_nir/artifacts/models/
+market_nir/artifacts/plots/
+market_nir/artifacts/report_pack/
