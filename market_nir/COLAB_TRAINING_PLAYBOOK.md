@@ -1,6 +1,7 @@
-# Colab Playbook: обучение DistilBERT и выгрузка модели
+# Colab Playbook: обучение моделей и выгрузка артефактов
 
 Этот сценарий заточен под текущий пайплайн `market_nir/src/05_train_distilbert.py`.
+Для рыночной модели без текста см. отдельный блок "Market-only walk-forward" ниже.
 
 ## Вариант A (рекомендуется)
 Локально готовим `labeled_events_split.parquet`, в Colab делаем только обучение.
@@ -145,3 +146,58 @@ drive.mount('/content/drive')
 - `File not found labeled_events_split.parquet` -> файл загружен не туда.
 - `CUDA out of memory` -> уменьшить `--batch-size` (например, до 8/12).
 - Метрики плохие -> увеличить эпохи и проверить баланс классов/порог `k`/горизонт `h`.
+
+---
+
+## Market-only walk-forward
+Если цель - модель, обучающаяся только на рыночных OHLCV-данных, GPU не нужен. В Colab достаточно CPU.
+
+```python
+!pip -q install "pandas>=2.0,<3.0" "pyarrow>=15,<22" "scikit-learn>=1.4,<2.0" \
+               "matplotlib>=3.8,<4.0" "yfinance>=0.2.40,<1.0"
+```
+
+```python
+!python market_nir/src/15_download_market_data_yf.py \
+  --tickers SPY,QQQ,IWM,DIA,TLT,GLD,USO,XLE,XLF,XLK \
+  --start 2015-01-01 \
+  --interval 1h \
+  --output market_nir/data/raw/market_bars_yf.csv
+```
+
+```python
+!python market_nir/src/13_build_market_only_dataset.py \
+  --market market_nir/data/raw/market_bars_yf.csv \
+  --horizon 6h \
+  --k 0.6 \
+  --vol-window 48 \
+  --feature-set full \
+  --market-context full \
+  --benchmark-ticker SPY \
+  --binary-mode drop_flat \
+  --min-rows-per-ticker 1000
+```
+
+```python
+!python market_nir/src/16_walkforward_market_model.py \
+  --input market_nir/data/processed/market_only_dataset.parquet \
+  --train-days 365 \
+  --test-days 30 \
+  --step-days 30 \
+  --gap-hours 6 \
+  --calibration-frac 0.2 \
+  --min-calibration-rows 500 \
+  --model-type classifier \
+  --max-iter 700 \
+  --learning-rate 0.03 \
+  --max-depth 5 \
+  --min-samples-leaf 80 \
+  --class-balance balanced
+```
+
+```python
+!python market_nir/src/07_backtest_event.py \
+  --predictions market_nir/artifacts/predictions/market_only_hgb_walkforward_predictions.parquet \
+  --split test \
+  --tau-quantile 0.9
+```

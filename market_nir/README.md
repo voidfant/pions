@@ -68,6 +68,7 @@ Run from repo root.
   --k 0.5 \
   --vol-window 48 \
   --feature-set full \
+  --market-context full \
   --binary-mode none
 
 ./venv/bin/python market_nir/src/14_train_market_model.py \
@@ -121,10 +122,12 @@ Then use `--market market_nir/data/raw/market_bars_yf.csv` in script `13`.
   --test-days 30 \
   --step-days 30 \
   --gap-hours 6 \
-  --max-iter 600 \
+  --calibration-frac 0.2 \
+  --model-type classifier \
+  --max-iter 700 \
   --learning-rate 0.03 \
   --max-depth 5 \
-  --min-samples-leaf 60 \
+  --min-samples-leaf 80 \
   --class-balance balanced
 
 ./venv/bin/python market_nir/src/07_backtest_event.py \
@@ -150,7 +153,7 @@ Then use `--market market_nir/data/raw/market_bars_yf.csv` in script `13`.
 - `13_build_market_only_dataset.py`: build time-series features and labels from market OHLCV only
 - `14_train_market_model.py`: train market-only classifier (`hgb`, `logreg`, `hgb_ensemble`)
 - `15_download_market_data_yf.py`: download extended OHLCV history from Yahoo Finance
-- `16_walkforward_market_model.py`: rolling walk-forward train/test predictions for robust evaluation
+- `16_walkforward_market_model.py`: rolling walk-forward train/test predictions with past-window signal calibration
 
 ## Input contracts
 

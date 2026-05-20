@@ -22,6 +22,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-rows-per-ticker", type=int, default=500)
     p.add_argument("--feature-set", choices=["lite", "full"], default="full")
     p.add_argument(
+        "--market-context",
+        choices=["none", "basic", "full"],
+        default="full",
+        help="Add cross-asset context features computed from the same timestamp.",
+    )
+    p.add_argument(
+        "--benchmark-ticker",
+        default="auto",
+        help="Ticker used for benchmark-relative features. 'auto' prefers SPY, then the most liquid ticker.",
+    )
+    p.add_argument(
         "--binary-mode",
         choices=["none", "drop_flat"],
         default="none",
@@ -63,6 +74,8 @@ def _feature_block(mt: pd.DataFrame, feature_set: str) -> tuple[pd.DataFrame, li
     mt["ret_6"] = mt["close"].pct_change(6)
     mt["ret_12"] = mt["close"].pct_change(12)
     mt["ret_24"] = mt["close"].pct_change(24)
+    mt["ret_48"] = mt["close"].pct_change(48)
+    mt["ret_96"] = mt["close"].pct_change(96)
     mt["log_ret_1"] = mt["log_close"].diff()
 
     mt["hl_spread"] = (mt["high"] - mt["low"]) / np.maximum(np.abs(mt["close"]), 1e-12)
@@ -80,6 +93,8 @@ def _feature_block(mt: pd.DataFrame, feature_set: str) -> tuple[pd.DataFrame, li
         mt[f"ret_skew_{w}"] = mt["ret_1"].rolling(w, min_periods=mp).skew()
         mt[f"vol_mean_{w}"] = mt["volume"].rolling(w, min_periods=mp).mean()
         mt[f"vol_std_{w}"] = mt["volume"].rolling(w, min_periods=mp).std()
+        mt[f"volume_rel_mean_{w}"] = mt["volume"] / (mt[f"vol_mean_{w}"] + 1e-12) - 1.0
+        mt[f"volume_z_{w}"] = (mt["volume"] - mt[f"vol_mean_{w}"]) / (mt[f"vol_std_{w}"] + 1e-12)
 
     mt["ewm_ret_fast"] = mt["ret_1"].ewm(span=8, adjust=False).mean()
     mt["ewm_ret_slow"] = mt["ret_1"].ewm(span=34, adjust=False).mean()
@@ -123,6 +138,8 @@ def _feature_block(mt: pd.DataFrame, feature_set: str) -> tuple[pd.DataFrame, li
         "ret_6",
         "ret_12",
         "ret_24",
+        "ret_48",
+        "ret_96",
         "log_ret_1",
         "hl_spread",
         "oc_ret",
@@ -147,7 +164,22 @@ def _feature_block(mt: pd.DataFrame, feature_set: str) -> tuple[pd.DataFrame, li
         "dow_cos",
     ]
 
-    lag_and_roll = [c for c in mt.columns if c.startswith(("ret_1_lag_", "ret_mean_", "ret_std_", "ret_skew_", "vol_mean_", "vol_std_"))]
+    lag_and_roll = [
+        c
+        for c in mt.columns
+        if c.startswith(
+            (
+                "ret_1_lag_",
+                "ret_mean_",
+                "ret_std_",
+                "ret_skew_",
+                "vol_mean_",
+                "vol_std_",
+                "volume_rel_mean_",
+                "volume_z_",
+            )
+        )
+    ]
     if feature_set == "full":
         feature_cols = base_features + lag_and_roll
     else:
@@ -155,6 +187,116 @@ def _feature_block(mt: pd.DataFrame, feature_set: str) -> tuple[pd.DataFrame, li
 
     feature_cols = [c for c in feature_cols if c in mt.columns]
     return mt, feature_cols
+
+
+def _safe_ticker_name(ticker: str) -> str:
+    return "".join(ch if ch.isalnum() else "_" for ch in ticker.upper()).strip("_") or "UNKNOWN"
+
+
+def _choose_benchmark(df: pd.DataFrame, requested: str) -> str:
+    tickers = sorted(str(t).upper() for t in df["ticker"].dropna().unique())
+    if not tickers:
+        raise SystemExit("No tickers available for market context")
+    requested_norm = requested.strip().upper()
+    if requested_norm and requested_norm != "AUTO":
+        if requested_norm not in tickers:
+            raise SystemExit(f"--benchmark-ticker={requested} not found in market data: {tickers}")
+        return requested_norm
+    for preferred in ("SPY", "QQQ", "BTCUSDT"):
+        if preferred in tickers:
+            return preferred
+    counts = df["ticker"].astype(str).str.upper().value_counts()
+    return str(counts.index[0]).upper()
+
+
+def _leave_one_out_mean(df: pd.DataFrame, col: str) -> pd.Series:
+    grouped = df.groupby("timestamp_utc")[col]
+    total = grouped.transform("sum")
+    count = grouped.transform("count")
+    mean = grouped.transform("mean")
+    loo = (total - df[col]) / (count - 1).replace(0, np.nan)
+    return loo.fillna(mean)
+
+
+def _add_market_context(
+    df: pd.DataFrame,
+    feature_cols: list[str],
+    mode: str,
+    benchmark_ticker: str,
+) -> tuple[pd.DataFrame, list[str], str | None]:
+    if mode == "none":
+        return df, feature_cols, None
+
+    out = df.copy()
+    out["ticker"] = out["ticker"].astype(str).str.upper()
+    benchmark = _choose_benchmark(out, benchmark_ticker)
+    added: list[str] = []
+
+    base_cols = [
+        c
+        for c in [
+            "ret_1",
+            "ret_2",
+            "ret_3",
+            "ret_6",
+            "ret_12",
+            "ret_24",
+            "ret_48",
+            "ret_96",
+            "log_ret_1",
+            "hl_spread",
+            "oc_ret",
+            "volume_ret_1",
+            "close_rel_sma_12",
+            "close_rel_sma_48",
+            "sma_cross_12_48",
+            "rsi_14",
+            "atr_rel_14",
+            "bb_z_20",
+            "bb_width_20",
+            "ewm_ret_diff",
+        ]
+        if c in out.columns
+    ]
+    if mode == "basic":
+        base_cols = [c for c in base_cols if c in {"ret_1", "ret_3", "ret_6", "ret_12", "volume_ret_1", "rsi_14", "atr_rel_14"}]
+
+    for col in base_cols:
+        mkt_col = f"mkt_loo_mean_{col}"
+        rel_col = f"rel_{col}_to_mkt"
+        out[mkt_col] = _leave_one_out_mean(out, col)
+        out[rel_col] = out[col] - out[mkt_col]
+        added.extend([mkt_col, rel_col])
+
+    for col in [c for c in ("ret_1", "ret_3", "ret_6", "ret_12", "ret_24") if c in out.columns]:
+        pos_col = f"mkt_breadth_pos_{col}"
+        std_col = f"mkt_std_{col}"
+        out[pos_col] = out.groupby("timestamp_utc")[col].transform(lambda s: float((s > 0).mean()))
+        out[std_col] = out.groupby("timestamp_utc")[col].transform("std").fillna(0.0)
+        added.extend([pos_col, std_col])
+
+    bench_cols = base_cols if mode == "full" else [c for c in base_cols if c in {"ret_1", "ret_3", "ret_6", "ret_12", "rsi_14"}]
+    bench = (
+        out[out["ticker"] == benchmark]
+        .sort_values("timestamp_utc")
+        .drop_duplicates(subset=["timestamp_utc"], keep="last")
+        .set_index("timestamp_utc")
+    )
+    for col in bench_cols:
+        bench_col = f"bench_{col}"
+        rel_col = f"rel_{col}_to_bench"
+        out[bench_col] = out["timestamp_utc"].map(bench[col])
+        out[rel_col] = out[col] - out[bench_col]
+        added.extend([bench_col, rel_col])
+
+    # Give the model ticker identity without relying on arbitrary numeric codes.
+    dummies = pd.get_dummies(out["ticker"], prefix="ticker", dtype=float)
+    dummies.columns = [f"ticker_{_safe_ticker_name(c.removeprefix('ticker_'))}" for c in dummies.columns]
+    out = pd.concat([out, dummies], axis=1)
+    added.extend(list(dummies.columns))
+
+    feature_cols_out = list(dict.fromkeys(feature_cols + added))
+    return out, feature_cols_out, benchmark
 
 
 def _label_block(mt: pd.DataFrame, horizon: pd.Timedelta, k: float, vol_window: int) -> pd.DataFrame:
@@ -250,6 +392,12 @@ def main() -> None:
         raise SystemExit("No rows built. Check market coverage and min-rows-per-ticker.")
 
     df = pd.concat(chunks, axis=0, ignore_index=True)
+    df, feature_cols_final, benchmark_used = _add_market_context(
+        df,
+        feature_cols=feature_cols_final,
+        mode=args.market_context,
+        benchmark_ticker=args.benchmark_ticker,
+    )
     df = _time_split(df, train_ratio=args.train_ratio, val_ratio=args.val_ratio, purge_td=purge_td)
     if df["split"].nunique() < 3:
         raise SystemExit("Split failed: not all train/val/test present")
@@ -278,6 +426,8 @@ def main() -> None:
         "k": float(args.k),
         "vol_window": int(args.vol_window),
         "feature_set": args.feature_set,
+        "market_context": args.market_context,
+        "benchmark_ticker": benchmark_used,
         "binary_mode": args.binary_mode,
         "features": feature_cols_final,
         "n_features": int(len(feature_cols_final)),
