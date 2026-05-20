@@ -67,7 +67,8 @@ Run from repo root.
   --horizon 4h \
   --k 0.5 \
   --vol-window 48 \
-  --feature-set full
+  --feature-set full \
+  --binary-mode none
 
 ./venv/bin/python market_nir/src/14_train_market_model.py \
   --model-type hgb_ensemble \
@@ -88,7 +89,9 @@ Run from repo root.
   --predictions market_nir/artifacts/predictions/market_only_hgb_ensemble_predictions.parquet \
   --split test \
   --tune-on-split val \
-  --tune-objective event_sharpe
+  --tune-objective event_sharpe \
+  --tune-min-trades 200 \
+  --tune-min-turnover 0.03
 
 ./venv/bin/python market_nir/src/10_monte_carlo_test.py \
   --predictions market_nir/artifacts/predictions/market_only_hgb_ensemble_predictions.parquet \
@@ -109,6 +112,27 @@ Run from repo root.
 
 Then use `--market market_nir/data/raw/market_bars_yf.csv` in script `13`.
 
+### Walk-forward (recommended for market reality)
+
+```bash
+./venv/bin/python market_nir/src/16_walkforward_market_model.py \
+  --input market_nir/data/processed/market_only_dataset.parquet \
+  --train-days 365 \
+  --test-days 30 \
+  --step-days 30 \
+  --gap-hours 6 \
+  --max-iter 600 \
+  --learning-rate 0.03 \
+  --max-depth 5 \
+  --min-samples-leaf 60 \
+  --class-balance balanced
+
+./venv/bin/python market_nir/src/07_backtest_event.py \
+  --predictions market_nir/artifacts/predictions/market_only_hgb_walkforward_predictions.parquet \
+  --split test \
+  --tau-quantile 0.9
+```
+
 ## Main scripts
 
 - `01_prepare_events.py`: basic cleaning and dedup for text events
@@ -126,6 +150,7 @@ Then use `--market market_nir/data/raw/market_bars_yf.csv` in script `13`.
 - `13_build_market_only_dataset.py`: build time-series features and labels from market OHLCV only
 - `14_train_market_model.py`: train market-only classifier (`hgb`, `logreg`, `hgb_ensemble`)
 - `15_download_market_data_yf.py`: download extended OHLCV history from Yahoo Finance
+- `16_walkforward_market_model.py`: rolling walk-forward train/test predictions for robust evaluation
 
 ## Input contracts
 

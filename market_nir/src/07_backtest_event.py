@@ -40,6 +40,18 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated quantiles of abs(score) used as tau candidates for tuning",
     )
     p.add_argument(
+        "--tune-min-trades",
+        type=int,
+        default=0,
+        help="Minimum number of trades for a tau candidate to be eligible",
+    )
+    p.add_argument(
+        "--tune-min-turnover",
+        type=float,
+        default=0.0,
+        help="Minimum turnover (fraction of traded rows) for a tau candidate to be eligible",
+    )
+    p.add_argument(
         "--invert-signal",
         action="store_true",
         help="Invert trading direction: long<->short for all non-zero signals",
@@ -115,6 +127,9 @@ def main() -> None:
         best_obj = -np.inf
         best_tau = None
         best_q = None
+        best_any_obj = -np.inf
+        best_any_tau = None
+        best_any_q = None
 
         for q in q_list:
             tau_q = float(np.quantile(np.abs(tune_score), q))
@@ -136,12 +151,34 @@ def main() -> None:
                     "trades": int(r["traded"].sum()),
                     "turnover": float(r["traded"].mean()),
                     "hit_rate": float(r["hit_rate"]),
+                    "eligible": bool(
+                        int(r["traded"].sum()) >= int(args.tune_min_trades)
+                        and float(r["traded"].mean()) >= float(args.tune_min_turnover)
+                    ),
                 }
             )
-            if obj > best_obj:
+
+            if obj > best_any_obj:
+                best_any_obj = obj
+                best_any_tau = tau_q
+                best_any_q = q
+
+            is_eligible = (
+                int(r["traded"].sum()) >= int(args.tune_min_trades)
+                and float(r["traded"].mean()) >= float(args.tune_min_turnover)
+            )
+            if is_eligible and obj > best_obj:
                 best_obj = obj
                 best_tau = tau_q
                 best_q = q
+
+        if best_tau is None:
+            best_tau = float(best_any_tau)
+            best_q = float(best_any_q)
+            print(
+                "[warning] No tau candidates satisfy --tune-min-trades/--tune-min-turnover. "
+                "Using best unrestricted candidate."
+            )
 
         tau = float(best_tau)
         tau_source = f"tuned_on_{args.tune_on_split}_q{best_q:.3f}_{args.tune_objective}"
@@ -181,6 +218,8 @@ def main() -> None:
         "tau_source": tau_source,
         "tune_on_split": None if args.tune_on_split == "none" else args.tune_on_split,
         "tune_objective": None if args.tune_on_split == "none" else args.tune_objective,
+        "tune_min_trades": int(args.tune_min_trades),
+        "tune_min_turnover": float(args.tune_min_turnover),
         "invert_signal": bool(args.invert_signal),
         "cost": float(args.cost),
         "rows": int(len(eval_df)),

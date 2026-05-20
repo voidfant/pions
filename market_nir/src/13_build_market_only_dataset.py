@@ -21,6 +21,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--purge", default=None, help="timedelta string, default=horizon")
     p.add_argument("--min-rows-per-ticker", type=int, default=500)
     p.add_argument("--feature-set", choices=["lite", "full"], default="full")
+    p.add_argument(
+        "--binary-mode",
+        choices=["none", "drop_flat"],
+        default="none",
+        help="none: keep DOWN/FLAT/UP; drop_flat: keep only DOWN/UP",
+    )
     return p.parse_args()
 
 
@@ -252,6 +258,15 @@ def main() -> None:
     out = df[keep_cols].copy()
     out = out.replace([np.inf, -np.inf], np.nan)
     out = out.dropna(subset=feature_cols_final + ["ret_h", "label", "split"]).reset_index(drop=True)
+
+    if args.binary_mode == "drop_flat":
+        out = out[out["label"].isin(["DOWN", "UP"])].copy().reset_index(drop=True)
+
+    if out["split"].nunique() < 3:
+        raise SystemExit("Split failed after binary filtering: not all train/val/test present")
+    if len(out) < 500:
+        raise SystemExit(f"Too few rows after filtering: {len(out)}")
+
     out["event_id"] = np.array([f"market_{i}" for i in range(len(out))], dtype=object)
 
     save_table(out, args.output)
@@ -263,6 +278,7 @@ def main() -> None:
         "k": float(args.k),
         "vol_window": int(args.vol_window),
         "feature_set": args.feature_set,
+        "binary_mode": args.binary_mode,
         "features": feature_cols_final,
         "n_features": int(len(feature_cols_final)),
         "label_distribution": {k: int(v) for k, v in label_dist.items()},
