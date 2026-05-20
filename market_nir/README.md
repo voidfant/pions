@@ -83,6 +83,13 @@ Run from repo root.
   --split test \
   --tau-quantile 0.9
 
+# Recommended: tune tau on val, evaluate on test (no leakage)
+./venv/bin/python market_nir/src/07_backtest_event.py \
+  --predictions market_nir/artifacts/predictions/market_only_hgb_ensemble_predictions.parquet \
+  --split test \
+  --tune-on-split val \
+  --tune-objective event_sharpe
+
 ./venv/bin/python market_nir/src/10_monte_carlo_test.py \
   --predictions market_nir/artifacts/predictions/market_only_hgb_ensemble_predictions.parquet \
   --split test \
