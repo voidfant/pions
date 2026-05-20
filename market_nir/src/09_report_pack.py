@@ -95,8 +95,16 @@ def main() -> None:
     args = parse_args()
     art = Path(args.artifacts)
     out = ensure_dir(args.out_dir)
-    figures_dir = ensure_dir(Path(out) / "figures")
-    tables_dir = ensure_dir(Path(out) / "tables")
+    figures_dir = Path(out) / "figures"
+    tables_dir = Path(out) / "tables"
+
+    # Prevent stale artifacts from previous pack runs.
+    if figures_dir.exists():
+        shutil.rmtree(figures_dir)
+    if tables_dir.exists():
+        shutil.rmtree(tables_dir)
+    figures_dir = ensure_dir(figures_dir)
+    tables_dir = ensure_dir(tables_dir)
 
     active_models = discover_models(art, args.mode)
     active_set = set(active_models)
