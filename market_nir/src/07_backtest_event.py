@@ -39,6 +39,11 @@ def parse_args() -> argparse.Namespace:
         default="0.70,0.75,0.80,0.85,0.90,0.92,0.94,0.95,0.96,0.97,0.98,0.99",
         help="Comma-separated quantiles of abs(score) used as tau candidates for tuning",
     )
+    p.add_argument(
+        "--invert-signal",
+        action="store_true",
+        help="Invert trading direction: long<->short for all non-zero signals",
+    )
     p.add_argument("--cost", type=float, default=0.0005, help="cost per trade")
     p.add_argument("--out-dir", default="market_nir/artifacts")
     return p.parse_args()
@@ -50,8 +55,10 @@ def max_drawdown(equity: np.ndarray) -> float:
     return float(dd.min())
 
 
-def run_strategy(score: np.ndarray, ret: np.ndarray, tau: float, cost: float):
+def run_strategy(score: np.ndarray, ret: np.ndarray, tau: float, cost: float, invert_signal: bool = False):
     signal = np.where(score > tau, 1.0, np.where(score < -tau, -1.0, 0.0))
+    if invert_signal:
+        signal = -signal
     pnl = signal * ret - cost * np.abs(signal)
     equity = np.cumsum(pnl)
     traded = np.abs(signal) > 0
@@ -111,7 +118,13 @@ def main() -> None:
 
         for q in q_list:
             tau_q = float(np.quantile(np.abs(tune_score), q))
-            r = run_strategy(tune_score, tune_ret, tau=tau_q, cost=args.cost)
+            r = run_strategy(
+                tune_score,
+                tune_ret,
+                tau=tau_q,
+                cost=args.cost,
+                invert_signal=args.invert_signal,
+            )
             obj = float(r["equity"][-1]) if args.tune_objective == "cum_return" else float(r["sharpe"])
             tune_rows.append(
                 {
@@ -145,7 +158,13 @@ def main() -> None:
         print(f"[info] tau inferred from |score| quantile q={q:.3f}: tau={tau:.6f}")
 
     ret = eval_df["ret_h"].values.astype(float)
-    rs = run_strategy(score=score, ret=ret, tau=tau, cost=args.cost)
+    rs = run_strategy(
+        score=score,
+        ret=ret,
+        tau=tau,
+        cost=args.cost,
+        invert_signal=args.invert_signal,
+    )
     signal = rs["signal"]
     pnl = rs["pnl"]
     equity = rs["equity"]
@@ -162,6 +181,7 @@ def main() -> None:
         "tau_source": tau_source,
         "tune_on_split": None if args.tune_on_split == "none" else args.tune_on_split,
         "tune_objective": None if args.tune_on_split == "none" else args.tune_objective,
+        "invert_signal": bool(args.invert_signal),
         "cost": float(args.cost),
         "rows": int(len(eval_df)),
         "trades": int(traded.sum()),
