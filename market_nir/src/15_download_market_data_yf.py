@@ -15,6 +15,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--start", default="2015-01-01")
     p.add_argument("--end", default=None)
     p.add_argument("--interval", default="1h", help="e.g. 1h, 1d")
+    p.add_argument(
+        "--intraday-max-days",
+        type=int,
+        default=729,
+        help="Yahoo intraday history cap (used for 1m/5m/15m/30m/60m/90m/1h)",
+    )
     p.add_argument("--output", default="market_nir/data/raw/market_bars_yf.csv")
     p.add_argument("--append-to", default=None, help="Optional existing csv to append and deduplicate")
     return p.parse_args()
@@ -41,6 +47,11 @@ def _normalize_single(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
     return out.dropna(subset=["timestamp_utc", "open", "high", "low", "close", "volume"])
 
 
+def is_intraday_interval(interval: str) -> bool:
+    interval = interval.strip().lower()
+    return interval.endswith(("m", "h")) and not interval.endswith(("mo",))
+
+
 def main() -> None:
     args = parse_args()
     try:
@@ -54,13 +65,28 @@ def main() -> None:
     if not tickers:
         raise SystemExit("No tickers provided")
 
+    start_eff = args.start
+    end_eff = args.end
+    if is_intraday_interval(args.interval):
+        now_utc = pd.Timestamp.utcnow()
+        cap_start = (now_utc - pd.Timedelta(days=args.intraday_max_days)).date()
+        req_start = pd.to_datetime(args.start, utc=True, errors="coerce")
+        if pd.isna(req_start):
+            raise SystemExit(f"Invalid --start date: {args.start}")
+        if req_start.date() < cap_start:
+            start_eff = str(cap_start)
+            print(
+                f"[info] interval={args.interval} is intraday, Yahoo keeps ~{args.intraday_max_days} days. "
+                f"start adjusted from {args.start} to {start_eff}."
+            )
+
     frames: list[pd.DataFrame] = []
     for ticker in tickers:
         print(f"Downloading {ticker}...")
         data = yf.download(
             tickers=ticker,
-            start=args.start,
-            end=args.end,
+            start=start_eff,
+            end=end_eff,
             interval=args.interval,
             auto_adjust=False,
             progress=False,
@@ -99,6 +125,10 @@ def main() -> None:
         "time_min": str(out["timestamp_utc"].min()),
         "time_max": str(out["timestamp_utc"].max()),
         "interval": args.interval,
+        "start_requested": args.start,
+        "start_effective": start_eff,
+        "end_requested": args.end,
+        "end_effective": end_eff,
         "output": str(out_path),
     }
     write_json(stats, "market_nir/artifacts/metrics/15_download_market_data_yf_stats.json")
