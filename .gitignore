@@ -11,3 +11,6 @@ market_nir/artifacts/report_pack/
 market_nir/data/raw/gdelt/
 market_nir/data/raw/text_events_gdelt*.csv
 market_nir/data/processed/*gdelt*.parquet
+market_nir/data/raw/market_bars_yf.csv
+market_nir/data/processed/market_only_dataset*.parquet
+market_nir/artifacts/predictions/market_only_*_predictions.parquet

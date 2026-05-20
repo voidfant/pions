@@ -59,26 +59,48 @@ Run from repo root.
 
 ## Market-only pipeline (no news, OHLCV only)
 
+### Option A: Use existing `market_bars.csv`
+
 ```bash
 ./venv/bin/python market_nir/src/13_build_market_only_dataset.py \
   --market market_nir/data/raw/market_bars.csv \
   --horizon 4h \
   --k 0.5 \
-  --vol-window 48
+  --vol-window 48 \
+  --feature-set full
 
-./venv/bin/python market_nir/src/14_train_market_model.py --model-type hgb
+./venv/bin/python market_nir/src/14_train_market_model.py \
+  --model-type hgb_ensemble \
+  --ensemble-size 7 \
+  --max-iter 1400 \
+  --learning-rate 0.02 \
+  --max-depth 7 \
+  --min-samples-leaf 12 \
+  --class-balance balanced
 
 ./venv/bin/python market_nir/src/07_backtest_event.py \
-  --predictions market_nir/artifacts/predictions/market_only_hgb_predictions.parquet \
+  --predictions market_nir/artifacts/predictions/market_only_hgb_ensemble_predictions.parquet \
   --split test \
   --tau-quantile 0.9
 
 ./venv/bin/python market_nir/src/10_monte_carlo_test.py \
-  --predictions market_nir/artifacts/predictions/market_only_hgb_predictions.parquet \
+  --predictions market_nir/artifacts/predictions/market_only_hgb_ensemble_predictions.parquet \
   --split test \
   --tau 0.0 \
   --n-runs 3000
 ```
+
+### Option B: Download much larger market history first
+
+```bash
+./venv/bin/python market_nir/src/15_download_market_data_yf.py \
+  --tickers SPY,QQQ,IWM,DIA,TLT,GLD,USO,XLE,XLF,XLK \
+  --start 2015-01-01 \
+  --interval 1h \
+  --output market_nir/data/raw/market_bars_yf.csv
+```
+
+Then use `--market market_nir/data/raw/market_bars_yf.csv` in script `13`.
 
 ## Main scripts
 
@@ -95,7 +117,8 @@ Run from repo root.
 - `11_download_gdelt.py`: downloader for large GDELT corpora (target by GB)
 - `12_build_gdelt_events.py`: convert extracted GDELT GKG files into `text_events.csv`
 - `13_build_market_only_dataset.py`: build time-series features and labels from market OHLCV only
-- `14_train_market_model.py`: train market-only classifier (`hgb` or `logreg`)
+- `14_train_market_model.py`: train market-only classifier (`hgb`, `logreg`, `hgb_ensemble`)
+- `15_download_market_data_yf.py`: download extended OHLCV history from Yahoo Finance
 
 ## Input contracts
 

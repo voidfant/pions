@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ from common import LABEL_ORDER, load_table, parse_utc, save_table, write_json
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Build market-only feature dataset from OHLCV")
+    p = argparse.ArgumentParser(description="Build powerful market-only feature dataset from OHLCV")
     p.add_argument("--market", default="market_nir/data/raw/market_bars.csv")
     p.add_argument("--output", default="market_nir/data/processed/market_only_dataset.parquet")
     p.add_argument("--horizon", default="4h", help="future horizon for label")
@@ -20,44 +19,145 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--train-ratio", type=float, default=0.7)
     p.add_argument("--val-ratio", type=float, default=0.15)
     p.add_argument("--purge", default=None, help="timedelta string, default=horizon")
-    p.add_argument("--min-rows-per-ticker", type=int, default=300)
+    p.add_argument("--min-rows-per-ticker", type=int, default=500)
+    p.add_argument("--feature-set", choices=["lite", "full"], default="full")
     return p.parse_args()
 
 
-def _feature_block(mt: pd.DataFrame) -> pd.DataFrame:
+def rsi(close: pd.Series, period: int) -> pd.Series:
+    delta = close.diff()
+    up = delta.clip(lower=0)
+    down = -delta.clip(upper=0)
+    roll_up = up.ewm(alpha=1 / period, adjust=False).mean()
+    roll_down = down.ewm(alpha=1 / period, adjust=False).mean()
+    rs = roll_up / (roll_down + 1e-12)
+    return 100 - (100 / (1 + rs))
+
+
+def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int) -> pd.Series:
+    prev_close = close.shift(1)
+    tr = pd.concat(
+        [
+            (high - low).abs(),
+            (high - prev_close).abs(),
+            (low - prev_close).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+    return tr.ewm(alpha=1 / period, adjust=False).mean()
+
+
+def _feature_block(mt: pd.DataFrame, feature_set: str) -> tuple[pd.DataFrame, list[str]]:
     mt = mt.sort_values("timestamp_utc").copy()
 
+    mt["log_close"] = np.log(np.maximum(mt["close"], 1e-12))
     mt["ret_1"] = mt["close"].pct_change()
+    mt["ret_2"] = mt["close"].pct_change(2)
     mt["ret_3"] = mt["close"].pct_change(3)
     mt["ret_6"] = mt["close"].pct_change(6)
     mt["ret_12"] = mt["close"].pct_change(12)
+    mt["ret_24"] = mt["close"].pct_change(24)
+    mt["log_ret_1"] = mt["log_close"].diff()
 
     mt["hl_spread"] = (mt["high"] - mt["low"]) / np.maximum(np.abs(mt["close"]), 1e-12)
     mt["oc_ret"] = (mt["close"] - mt["open"]) / np.maximum(np.abs(mt["open"]), 1e-12)
     mt["volume_ret_1"] = mt["volume"].pct_change()
+    mt["volume_log"] = np.log1p(np.maximum(mt["volume"], 0.0))
 
-    for w in (6, 12, 24, 48):
-        mt[f"ret_mean_{w}"] = mt["ret_1"].rolling(w, min_periods=max(3, w // 3)).mean()
-        mt[f"ret_std_{w}"] = mt["ret_1"].rolling(w, min_periods=max(3, w // 3)).std()
-        mt[f"vol_mean_{w}"] = mt["volume"].rolling(w, min_periods=max(3, w // 3)).mean()
+    for lag in (1, 2, 3, 4, 5, 8, 12):
+        mt[f"ret_1_lag_{lag}"] = mt["ret_1"].shift(lag)
+
+    for w in (6, 12, 24, 48, 96):
+        mp = max(3, w // 4)
+        mt[f"ret_mean_{w}"] = mt["ret_1"].rolling(w, min_periods=mp).mean()
+        mt[f"ret_std_{w}"] = mt["ret_1"].rolling(w, min_periods=mp).std()
+        mt[f"ret_skew_{w}"] = mt["ret_1"].rolling(w, min_periods=mp).skew()
+        mt[f"vol_mean_{w}"] = mt["volume"].rolling(w, min_periods=mp).mean()
+        mt[f"vol_std_{w}"] = mt["volume"].rolling(w, min_periods=mp).std()
+
+    mt["ewm_ret_fast"] = mt["ret_1"].ewm(span=8, adjust=False).mean()
+    mt["ewm_ret_slow"] = mt["ret_1"].ewm(span=34, adjust=False).mean()
+    mt["ewm_ret_diff"] = mt["ewm_ret_fast"] - mt["ewm_ret_slow"]
 
     mt["close_sma_12"] = mt["close"].rolling(12, min_periods=4).mean()
     mt["close_sma_48"] = mt["close"].rolling(48, min_periods=12).mean()
     mt["close_rel_sma_12"] = (mt["close"] / np.maximum(mt["close_sma_12"], 1e-12)) - 1.0
     mt["close_rel_sma_48"] = (mt["close"] / np.maximum(mt["close_sma_48"], 1e-12)) - 1.0
+    mt["sma_cross_12_48"] = (mt["close_sma_12"] / np.maximum(mt["close_sma_48"], 1e-12)) - 1.0
 
-    mt["sigma_1"] = mt["ret_1"].rolling(window=48, min_periods=12).std()
-    return mt
+    mt["rsi_14"] = rsi(mt["close"], 14) / 100.0
+    mt["rsi_28"] = rsi(mt["close"], 28) / 100.0
+
+    mt["atr_14"] = atr(mt["high"], mt["low"], mt["close"], 14)
+    mt["atr_rel_14"] = mt["atr_14"] / np.maximum(np.abs(mt["close"]), 1e-12)
+
+    ema12 = mt["close"].ewm(span=12, adjust=False).mean()
+    ema26 = mt["close"].ewm(span=26, adjust=False).mean()
+    mt["macd_line"] = ema12 - ema26
+    mt["macd_signal"] = mt["macd_line"].ewm(span=9, adjust=False).mean()
+    mt["macd_hist"] = mt["macd_line"] - mt["macd_signal"]
+
+    bb_mid = mt["close"].rolling(20, min_periods=8).mean()
+    bb_std = mt["close"].rolling(20, min_periods=8).std()
+    mt["bb_z_20"] = (mt["close"] - bb_mid) / (bb_std + 1e-12)
+    mt["bb_width_20"] = (2.0 * bb_std) / np.maximum(np.abs(bb_mid), 1e-12)
+
+    ts = mt["timestamp_utc"].dt
+    hour = ts.hour.astype(float)
+    dow = ts.dayofweek.astype(float)
+    mt["hour_sin"] = np.sin(2.0 * np.pi * hour / 24.0)
+    mt["hour_cos"] = np.cos(2.0 * np.pi * hour / 24.0)
+    mt["dow_sin"] = np.sin(2.0 * np.pi * dow / 7.0)
+    mt["dow_cos"] = np.cos(2.0 * np.pi * dow / 7.0)
+
+    base_features = [
+        "ret_1",
+        "ret_2",
+        "ret_3",
+        "ret_6",
+        "ret_12",
+        "ret_24",
+        "log_ret_1",
+        "hl_spread",
+        "oc_ret",
+        "volume_ret_1",
+        "close_rel_sma_12",
+        "close_rel_sma_48",
+        "sma_cross_12_48",
+        "rsi_14",
+        "rsi_28",
+        "atr_rel_14",
+        "macd_line",
+        "macd_signal",
+        "macd_hist",
+        "bb_z_20",
+        "bb_width_20",
+        "ewm_ret_fast",
+        "ewm_ret_slow",
+        "ewm_ret_diff",
+        "hour_sin",
+        "hour_cos",
+        "dow_sin",
+        "dow_cos",
+    ]
+
+    lag_and_roll = [c for c in mt.columns if c.startswith(("ret_1_lag_", "ret_mean_", "ret_std_", "ret_skew_", "vol_mean_", "vol_std_"))]
+    if feature_set == "full":
+        feature_cols = base_features + lag_and_roll
+    else:
+        feature_cols = base_features
+
+    feature_cols = [c for c in feature_cols if c in mt.columns]
+    return mt, feature_cols
 
 
 def _label_block(mt: pd.DataFrame, horizon: pd.Timedelta, k: float, vol_window: int) -> pd.DataFrame:
     mt = mt.sort_values("timestamp_utc").copy()
-    mt["sigma_1"] = mt["ret_1"].rolling(window=vol_window, min_periods=max(5, vol_window // 4)).std()
+    mt["sigma_1"] = mt["ret_1"].rolling(window=vol_window, min_periods=max(8, vol_window // 4)).std()
 
     t_arr = mt["timestamp_utc"].values.astype("datetime64[ns]")
     close_arr = mt["close"].values.astype(float)
     sigma_arr = mt["sigma_1"].values.astype(float)
-
     if len(t_arr) < 10:
         return pd.DataFrame()
 
@@ -104,7 +204,6 @@ def _time_split(df: pd.DataFrame, train_ratio: float, val_ratio: float, purge_td
     train_mask = out["timestamp_utc"] < (t1 - purge_td)
     val_mask = (out["timestamp_utc"] >= (t1 + purge_td)) & (out["timestamp_utc"] < (t2 - purge_td))
     test_mask = out["timestamp_utc"] >= (t2 + purge_td)
-
     split[train_mask.values] = "train"
     split[val_mask.values] = "val"
     split[test_mask.values] = "test"
@@ -129,16 +228,19 @@ def main() -> None:
     purge_td = pd.to_timedelta(args.purge) if args.purge else horizon
 
     chunks = []
+    feature_cols_final: list[str] | None = None
     for ticker, g in market.groupby("ticker"):
         if len(g) < args.min_rows_per_ticker:
             continue
-        feat = _feature_block(g)
+        feat, feature_cols = _feature_block(g, feature_set=args.feature_set)
         lab = _label_block(feat, horizon=horizon, k=args.k, vol_window=args.vol_window)
         if len(lab) == 0:
             continue
+        if feature_cols_final is None:
+            feature_cols_final = feature_cols
         chunks.append(lab)
 
-    if not chunks:
+    if not chunks or not feature_cols_final:
         raise SystemExit("No rows built. Check market coverage and min-rows-per-ticker.")
 
     df = pd.concat(chunks, axis=0, ignore_index=True)
@@ -146,17 +248,10 @@ def main() -> None:
     if df["split"].nunique() < 3:
         raise SystemExit("Split failed: not all train/val/test present")
 
-    feature_cols = [c for c in df.columns if c in {
-        "ret_1", "ret_3", "ret_6", "ret_12",
-        "hl_spread", "oc_ret", "volume_ret_1",
-        "ret_mean_6", "ret_mean_12", "ret_mean_24", "ret_mean_48",
-        "ret_std_6", "ret_std_12", "ret_std_24", "ret_std_48",
-        "vol_mean_6", "vol_mean_12", "vol_mean_24", "vol_mean_48",
-        "close_rel_sma_12", "close_rel_sma_48",
-    }]
-    keep_cols = ["timestamp_utc", "ticker", "ret_h", "label", "split"] + feature_cols
+    keep_cols = ["timestamp_utc", "ticker", "ret_h", "label", "split"] + feature_cols_final
     out = df[keep_cols].copy()
-    out = out.dropna(subset=feature_cols + ["ret_h", "label", "split"]).reset_index(drop=True)
+    out = out.replace([np.inf, -np.inf], np.nan)
+    out = out.dropna(subset=feature_cols_final + ["ret_h", "label", "split"]).reset_index(drop=True)
     out["event_id"] = np.array([f"market_{i}" for i in range(len(out))], dtype=object)
 
     save_table(out, args.output)
@@ -167,8 +262,9 @@ def main() -> None:
         "horizon": args.horizon,
         "k": float(args.k),
         "vol_window": int(args.vol_window),
-        "features": feature_cols,
-        "n_features": int(len(feature_cols)),
+        "feature_set": args.feature_set,
+        "features": feature_cols_final,
+        "n_features": int(len(feature_cols_final)),
         "label_distribution": {k: int(v) for k, v in label_dist.items()},
         "split_counts": {k: int(v) for k, v in out["split"].value_counts().to_dict().items()},
         "time_min": str(out["timestamp_utc"].min()),
