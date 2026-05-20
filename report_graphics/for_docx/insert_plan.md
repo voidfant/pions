@@ -28,3 +28,27 @@
 4. `3_04_04_gcn_embeddings_pca.png` — PCA эмбеддингов GCN
 5. `3_05_05_graph_structure_subgraph.png` — Визуализация подграфа
 6. `3_06_06_degree_distribution.png` — Распределение степеней узлов
+
+## Раздел 4. Влияние архитектуры модели на прогнозирование рыночных временных рядов
+
+Графики лежат в `4_market_architecture/`.
+
+1. `4_market_architecture/4_00_market_experiment_pipeline.png` — Pipeline эксперимента раздела 4
+2. `4_market_architecture/4_09_split_and_label_distribution.png` — Размеры train/val/test и распределение классов
+3. `4_market_architecture/4_11_market_return_context.png` — Накопленная будущая доходность ret_h по тикерам
+4. `4_market_architecture/4_10_feature_group_counts.png` — Группы признаков market-only датасета
+5. `4_market_architecture/4_12_architecture_assumptions.png` — Сравниваемые архитектуры и их индуктивные предположения
+6. `4_market_architecture/4_13_training_val_balanced_accuracy.png` — Validation balanced accuracy нейросетевых моделей
+7. `4_market_architecture/4_14_training_loss_curves.png` — Training loss нейросетевых моделей
+8. `4_market_architecture/4_01_architecture_quality_metrics.png` — Сравнение архитектур по balanced accuracy, macro-F1 и hit-rate top-10% сигналов
+9. `4_market_architecture/4_08_metrics_heatmap.png` — Тепловая карта итоговых метрик
+10. `4_market_architecture/4_02_quality_vs_train_time.png` — Компромисс качества и времени обучения
+11. `4_market_architecture/4_03_inference_latency.png` — Скорость инференса разных архитектур
+12. `4_market_architecture/4_04_parameter_complexity.png` — Параметрическая сложность моделей
+13. `4_market_architecture/4_18_quality_efficiency_radar.png` — Интегральный профиль качества и эффективности
+14. `4_market_architecture/4_15_score_distributions.png` — Распределение score по моделям
+15. `4_market_architecture/4_06_score_vs_future_return.png` — Связь score модели и будущей доходности
+16. `4_market_architecture/4_16_top10_pnl_by_model.png` — PnL top-10% наиболее уверенных сигналов
+17. `4_market_architecture/4_07_equity_curves_top10.png` — Equity-кривые top-10% сигналов
+18. `4_market_architecture/4_05_best_model_confusion_matrix.png` — Матрица ошибок лучшей модели
+19. `4_market_architecture/4_17_best_model_rolling_error.png` — Скользящая доля ошибок лучшей модели

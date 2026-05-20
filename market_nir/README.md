@@ -136,6 +136,37 @@ Then use `--market market_nir/data/raw/market_bars_yf.csv` in script `13`.
   --tau-quantile 0.9
 ```
 
+### Architecture comparison for report section 4
+
+```bash
+./venv/bin/python market_nir/src/13_build_market_only_dataset.py \
+  --market market_nir/data/raw/market_bars.csv \
+  --output market_nir/data/processed/market_only_dataset.parquet \
+  --horizon 4h \
+  --k 0.5 \
+  --vol-window 48 \
+  --feature-set full \
+  --market-context full \
+  --binary-mode drop_flat
+
+./venv/bin/python market_nir/src/18_architecture_comparison.py \
+  --input market_nir/data/processed/market_only_dataset.parquet \
+  --out-dir market_nir/artifacts/architecture_comparison \
+  --torch-epochs 6 \
+  --hgb-max-iter 220
+
+./venv/bin/python market_nir/src/19_build_section4_docx.py \
+  --input-docx Курсовая_работа_Савченко_КА.docx \
+  --output-docx Курсовая_работа_Савченко_КА_block4_market_detailed.docx \
+  --artifacts market_nir/artifacts/architecture_comparison
+```
+
+Outputs:
+- `market_nir/artifacts/architecture_comparison/metrics/architecture_comparison_metrics.csv`
+- `market_nir/artifacts/architecture_comparison/plots/4_*.png`
+- `market_nir/artifacts/architecture_comparison/section_4_market_architecture_text.md`
+- `Курсовая_работа_Савченко_КА_block4_market_detailed.docx`
+
 ## Main scripts
 
 - `01_prepare_events.py`: basic cleaning and dedup for text events
@@ -154,6 +185,8 @@ Then use `--market market_nir/data/raw/market_bars_yf.csv` in script `13`.
 - `14_train_market_model.py`: train market-only classifier (`hgb`, `logreg`, `hgb_ensemble`)
 - `15_download_market_data_yf.py`: download extended OHLCV history from Yahoo Finance
 - `16_walkforward_market_model.py`: rolling walk-forward train/test predictions with past-window signal calibration
+- `18_architecture_comparison.py`: compare linear, boosting, MLP, TemporalCNN and TinyTransformer architectures for section 4
+- `19_build_section4_docx.py`: rebuild the course document with the detailed market architecture section
 
 ## Input contracts
 
