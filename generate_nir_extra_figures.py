@@ -81,13 +81,13 @@ def generate_transformer_extras(root: Path):
     epochs = np.arange(1, len(atl) + 1)
 
     plt.figure(figsize=(9, 5))
-    plt.plot(epochs, ata, label="Attention train acc", marker="o")
-    plt.plot(epochs, rta, label="RNN train acc", marker="s")
-    plt.plot(epochs, ava, label="Attention test acc", linestyle="--")
-    plt.plot(epochs, rva, label="RNN test acc", linestyle="--")
-    plt.title("Attention vs RNN: accuracy trajectories")
-    plt.xlabel("Epoch")
-    plt.ylabel("Accuracy")
+    plt.plot(epochs, ata, label="Attention: обучение", marker="o")
+    plt.plot(epochs, rta, label="RNN: обучение", marker="s")
+    plt.plot(epochs, ava, label="Attention: тест", linestyle="--")
+    plt.plot(epochs, rva, label="RNN: тест", linestyle="--")
+    plt.title("Attention и RNN: траектории точности")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Точность")
     plt.ylim(0.4, 1.0)
     plt.grid(alpha=0.25)
     plt.legend()
@@ -99,9 +99,9 @@ def generate_transformer_extras(root: Path):
     plt.figure(figsize=(8.6, 4.8))
     plt.plot(epochs, gap, color="#C44E52", marker="o")
     plt.axhline(0.0, color="black", linewidth=1)
-    plt.title("Generalization gap: Attention(test) - RNN(test)")
-    plt.xlabel("Epoch")
-    plt.ylabel("Accuracy difference")
+    plt.title("Разрыв обобщения: Attention(тест) - RNN(тест)")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Разность точности")
     plt.grid(alpha=0.25)
     plt.tight_layout()
     plt.savefig(out / "09_attention_minus_rnn_gap.png", dpi=180)
@@ -149,9 +149,9 @@ def generate_transformer_extras(root: Path):
     plt.figure(figsize=(8.8, 4.8))
     plt.plot(ep2, sl, marker="o", label="small")
     plt.plot(ep2, ll, marker="s", label="large")
-    plt.title("MiniTransformer: train loss overlay")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
+    plt.title("MiniTransformer: сравнение потерь на обучении")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Потери")
     plt.grid(alpha=0.25)
     plt.legend()
     plt.tight_layout()
@@ -161,9 +161,9 @@ def generate_transformer_extras(root: Path):
     plt.figure(figsize=(8.8, 4.8))
     plt.plot(ep2, sa, marker="o", label="small")
     plt.plot(ep2, la, marker="s", label="large")
-    plt.title("MiniTransformer: test token accuracy overlay")
-    plt.xlabel("Epoch")
-    plt.ylabel("Token accuracy")
+    plt.title("MiniTransformer: сравнение точности токенов на тесте")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Точность токенов")
     plt.ylim(0, 1)
     plt.grid(alpha=0.25)
     plt.legend()
@@ -171,7 +171,7 @@ def generate_transformer_extras(root: Path):
     plt.savefig(out / "11_minitransformer_accuracy_overlay.png", dpi=180)
     plt.close()
 
-    # Sensitivity (heads in attention model)
+    # Чувствительность к числу голов внимания
     heads_list = [1, 2, 4, 8]
     final_acc = []
     for h in heads_list:
@@ -181,9 +181,9 @@ def generate_transformer_extras(root: Path):
 
     plt.figure(figsize=(7.8, 4.8))
     plt.plot(heads_list, final_acc, marker="o", color="#4C72B0")
-    plt.title("Attention model sensitivity to number of heads")
-    plt.xlabel("Number of heads")
-    plt.ylabel("Final test accuracy")
+    plt.title("Чувствительность Attention-модели к числу голов")
+    plt.xlabel("Число голов внимания")
+    plt.ylabel("Итоговая точность на тесте")
     plt.ylim(0.4, 1.0)
     plt.grid(alpha=0.25)
     plt.tight_layout()
@@ -264,14 +264,14 @@ def generate_gan_extras(root: Path):
 
     ep = np.arange(1, epochs + 1)
 
-    # phase portrait
+    # Фазовый портрет
     plt.figure(figsize=(7.8, 6.4))
     plt.plot(d_curve, g_curve, linewidth=1.5)
-    plt.scatter(d_curve[0], g_curve[0], c="green", label="start", s=60)
-    plt.scatter(d_curve[-1], g_curve[-1], c="red", label="end", s=60)
-    plt.title("GAN training trajectory in loss phase-space")
-    plt.xlabel("Discriminator loss")
-    plt.ylabel("Generator loss")
+    plt.scatter(d_curve[0], g_curve[0], c="green", label="старт", s=60)
+    plt.scatter(d_curve[-1], g_curve[-1], c="red", label="финиш", s=60)
+    plt.title("Траектория обучения GAN в пространстве потерь")
+    plt.xlabel("Потери дискриминатора")
+    plt.ylabel("Потери генератора")
     plt.grid(alpha=0.25)
     plt.legend()
     plt.tight_layout()
@@ -281,9 +281,9 @@ def generate_gan_extras(root: Path):
     plt.figure(figsize=(8.8, 4.8))
     plt.plot(ep, np.array(dr_curve) - np.array(df_curve), color="#8172B2")
     plt.axhline(0.0, color="black", linewidth=1)
-    plt.title("Discriminator margin: D(real)-D(fake)")
-    plt.xlabel("Epoch")
-    plt.ylabel("Margin")
+    plt.title("Зазор дискриминатора: D(реальные) - D(сгенерированные)")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Зазор")
     plt.grid(alpha=0.25)
     plt.tight_layout()
     plt.savefig(out / "06_discriminator_margin_curve.png", dpi=180)
@@ -293,7 +293,7 @@ def generate_gan_extras(root: Path):
         real = sample_real(12000, device).cpu().numpy()
         fake = gen(torch.randn(12000, 16, device=device)).cpu().numpy()
 
-    # radial profile
+    # Радиальный профиль
     rr = np.sqrt(real[:, 0] ** 2 + real[:, 1] ** 2)
     rf = np.sqrt(fake[:, 0] ** 2 + fake[:, 1] ** 2)
     bins = np.linspace(0, 4, 45)
@@ -302,18 +302,18 @@ def generate_gan_extras(root: Path):
     centers = 0.5 * (bins[1:] + bins[:-1])
 
     plt.figure(figsize=(8.8, 4.8))
-    plt.plot(centers, hr, label="real radial density")
-    plt.plot(centers, hf, label="generated radial density")
-    plt.title("Radial density comparison: real vs generated")
-    plt.xlabel("Radius")
-    plt.ylabel("Density")
+    plt.plot(centers, hr, label="реальная радиальная плотность")
+    plt.plot(centers, hf, label="сгенерированная радиальная плотность")
+    plt.title("Сравнение радиальной плотности: реальные и сгенерированные")
+    plt.xlabel("Радиус")
+    plt.ylabel("Плотность")
     plt.grid(alpha=0.25)
     plt.legend()
     plt.tight_layout()
     plt.savefig(out / "07_radial_density_real_vs_generated.png", dpi=180)
     plt.close()
 
-    # occupancy difference heatmap
+    # Тепловая карта разности заполнения
     Hreal, xedges, yedges = np.histogram2d(real[:, 0], real[:, 1], bins=60, range=[[-3.5, 3.5], [-3.5, 3.5]], density=True)
     Hfake, _, _ = np.histogram2d(fake[:, 0], fake[:, 1], bins=[xedges, yedges], density=True)
     diff = Hfake - Hreal
@@ -322,7 +322,7 @@ def generate_gan_extras(root: Path):
     vmax = np.percentile(np.abs(diff), 98)
     im = plt.imshow(diff.T, origin="lower", cmap="coolwarm", vmin=-vmax, vmax=vmax,
                     extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
-    plt.title("Occupancy difference heatmap (generated - real)")
+    plt.title("Разность плотностей заполнения (сгенерированные - реальные)")
     plt.xlabel("x1")
     plt.ylabel("x2")
     plt.colorbar(im)
@@ -411,7 +411,7 @@ def generate_gnn_extras(root: Path):
             g_acc.append(float((pg == y[te]).float().mean().item()))
             m_acc.append(float((pm == y[te]).float().mean().item()))
 
-    # confusion matrices
+    # Матрицы ошибок
     def confmat(y_true, y_pred, k=3):
         cm = np.zeros((k, k), dtype=int)
         for t, p in zip(y_true, y_pred):
@@ -428,12 +428,15 @@ def generate_gnn_extras(root: Path):
     cmg = confmat(yt, yg)
     cmm = confmat(yt, ym)
 
-    for cm, name in [(cmg, "07_confusion_matrix_gcn.png"), (cmm, "08_confusion_matrix_mlp.png")]:
+    for cm, name, title in [
+        (cmg, "07_confusion_matrix_gcn.png", "Матрица ошибок GCN"),
+        (cmm, "08_confusion_matrix_mlp.png", "Матрица ошибок MLP"),
+    ]:
         plt.figure(figsize=(5.6, 4.8))
         im = plt.imshow(cm, cmap="Blues")
-        plt.title(name.replace("_", " ").replace(".png", ""))
-        plt.xlabel("Predicted class")
-        plt.ylabel("True class")
+        plt.title(title)
+        plt.xlabel("Предсказанный класс")
+        plt.ylabel("Истинный класс")
         for i in range(cm.shape[0]):
             for j in range(cm.shape[1]):
                 plt.text(j, i, str(cm[i, j]), ha="center", va="center", color="black")
@@ -442,7 +445,7 @@ def generate_gnn_extras(root: Path):
         plt.savefig(out / name, dpi=180)
         plt.close()
 
-    # class-wise accuracy
+    # Точность по классам
     cls = np.unique(yt)
     gcls, mcls = [], []
     for c in cls:
@@ -455,17 +458,17 @@ def generate_gnn_extras(root: Path):
     plt.figure(figsize=(8, 4.8))
     plt.bar(x - w/2, gcls, w, label="GCN")
     plt.bar(x + w/2, mcls, w, label="MLP")
-    plt.xticks(x, [f"Class {c}" for c in cls])
+    plt.xticks(x, [f"Класс {c}" for c in cls])
     plt.ylim(0, 1.05)
-    plt.title("Class-wise accuracy: GCN vs MLP")
-    plt.ylabel("Accuracy")
+    plt.title("Точность по классам: GCN и MLP")
+    plt.ylabel("Точность")
     plt.grid(axis="y", alpha=0.25)
     plt.legend()
     plt.tight_layout()
     plt.savefig(out / "09_classwise_accuracy_comparison.png", dpi=180)
     plt.close()
 
-    # degree vs confidence
+    # Степень узла и уверенность
     deg = Abin.sum(axis=1)
     conf = torch.softmax(lg, dim=1).max(dim=1).values.cpu().numpy()
     deg_te = deg[te]
@@ -473,10 +476,10 @@ def generate_gnn_extras(root: Path):
     plt.scatter(deg_te, conf, s=14, alpha=0.6)
     z = np.polyfit(deg_te, conf, 1)
     xx = np.linspace(deg_te.min(), deg_te.max(), 100)
-    plt.plot(xx, z[0]*xx + z[1], color="#C44E52", linewidth=2, label="linear trend")
-    plt.title("Node degree vs GCN confidence (test nodes)")
-    plt.xlabel("Node degree")
-    plt.ylabel("Max softmax confidence")
+    plt.plot(xx, z[0]*xx + z[1], color="#C44E52", linewidth=2, label="линейный тренд")
+    plt.title("Степень узла и уверенность GCN (тестовые узлы)")
+    plt.xlabel("Степень узла")
+    plt.ylabel("Максимальная softmax-уверенность")
     plt.grid(alpha=0.25)
     plt.legend()
     plt.tight_layout()
@@ -490,4 +493,4 @@ if __name__ == "__main__":
     generate_transformer_extras(base)
     generate_gan_extras(base)
     generate_gnn_extras(base)
-    print("Saved extra figures to", base.resolve())
+    print("Дополнительные графики сохранены в", base.resolve())

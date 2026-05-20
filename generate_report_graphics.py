@@ -82,18 +82,18 @@ def build_docx_pack(root: Path) -> Path:
     }
 
     transformer_items = [
-        ("01_positional_encoding_heatmap.png", "Тепловая карта positional encoding"),
-        ("02_attention_weights_head0.png", "Матрица весов self-attention"),
-        ("03_attention_vs_rnn_train_loss.png", "Сравнение Attention и RNN по train loss"),
-        ("04_attention_vs_rnn_test_accuracy.png", "Сравнение Attention и RNN по test accuracy"),
-        ("05_minitransformer_loss_small.png", "MiniTransformer small: loss"),
-        ("06_minitransformer_acc_small.png", "MiniTransformer small: token accuracy"),
+        ("01_positional_encoding_heatmap.png", "Тепловая карта позиционного кодирования"),
+        ("02_attention_weights_head0.png", "Матрица весов самовнимания"),
+        ("03_attention_vs_rnn_train_loss.png", "Сравнение Attention и RNN по функции потерь на обучении"),
+        ("04_attention_vs_rnn_test_accuracy.png", "Сравнение Attention и RNN по точности на тесте"),
+        ("05_minitransformer_loss_small.png", "MiniTransformer small: функция потерь"),
+        ("06_minitransformer_acc_small.png", "MiniTransformer small: точность токенов"),
         ("07_minitransformer_final_comparison.png", "Финальное сравнение конфигураций MiniTransformer"),
     ]
 
     gan_distribution = sorted((root / "gan").glob("01_distribution_epoch_*.png"))
     gan_items: List[Tuple[str, str]] = [
-        (p.name, f"Распределение real/generated, {p.stem.replace('01_distribution_', '').replace('_', ' ')}")
+        (p.name, f"Распределение реальных и сгенерированных точек, {p.stem.replace('01_distribution_', '').replace('_', ' ')}")
         for p in gan_distribution
     ]
     gan_items.extend(
@@ -105,8 +105,8 @@ def build_docx_pack(root: Path) -> Path:
     )
 
     gnn_items = [
-        ("01_gcn_vs_mlp_train_loss.png", "GCN vs MLP: train loss"),
-        ("02_gcn_vs_mlp_test_accuracy.png", "GCN vs MLP: test accuracy"),
+        ("01_gcn_vs_mlp_train_loss.png", "GCN vs MLP: функция потерь на обучении"),
+        ("02_gcn_vs_mlp_test_accuracy.png", "GCN vs MLP: точность на тесте"),
         ("03_final_accuracy_bar.png", "Финальная точность методов"),
         ("04_gcn_embeddings_pca.png", "PCA эмбеддингов GCN"),
         ("05_graph_structure_subgraph.png", "Визуализация подграфа"),
@@ -139,6 +139,43 @@ def build_docx_pack(root: Path) -> Path:
                 lines.append(f"{img_idx}. `{target_name}` — {caption}")
                 img_idx += 1
 
+        lines.append("")
+
+    section4_source = Path("market_nir/artifacts/architecture_comparison/plots")
+    section4_dir = make_dir(docx_dir / "4_market_architecture")
+    section4_items = [
+        ("4_00_market_experiment_pipeline.png", "Конвейер эксперимента раздела 4"),
+        ("4_09_split_and_label_distribution.png", "Размеры обучающего, валидационного и тестового разбиений и распределение классов"),
+        ("4_11_market_return_context.png", "Накопленная будущая доходность ret_h по тикерам"),
+        ("4_10_feature_group_counts.png", "Группы признаков market-only датасета"),
+        ("4_12_architecture_assumptions.png", "Сравниваемые архитектуры и их индуктивные предположения"),
+        ("4_13_training_val_balanced_accuracy.png", "Сбалансированная accuracy нейросетевых моделей на валидации"),
+        ("4_14_training_loss_curves.png", "Функция потерь нейросетевых моделей на обучении"),
+        ("4_01_architecture_quality_metrics.png", "Сравнение архитектур по сбалансированной accuracy, macro-F1 и hit-rate top-10% сигналов"),
+        ("4_08_metrics_heatmap.png", "Тепловая карта итоговых метрик"),
+        ("4_02_quality_vs_train_time.png", "Компромисс качества и времени обучения"),
+        ("4_03_inference_latency.png", "Скорость инференса разных архитектур"),
+        ("4_04_parameter_complexity.png", "Параметрическая сложность моделей"),
+        ("4_18_quality_efficiency_radar.png", "Интегральный профиль качества и эффективности"),
+        ("4_15_score_distributions.png", "Распределение score по моделям"),
+        ("4_06_score_vs_future_return.png", "Связь score модели и будущей доходности"),
+        ("4_16_top10_pnl_by_model.png", "PnL top-10% наиболее уверенных сигналов"),
+        ("4_07_equity_curves_top10.png", "Кривые капитала для top-10% сигналов"),
+        ("4_05_best_model_confusion_matrix.png", "Матрица ошибок лучшей модели"),
+        ("4_17_best_model_rolling_error.png", "Скользящая доля ошибок лучшей модели"),
+    ]
+    if section4_source.exists():
+        lines.append("## Раздел 4. Влияние архитектуры модели на прогнозирование рыночных временных рядов")
+        lines.append("")
+        lines.append("Графики лежат в `4_market_architecture/`.")
+        lines.append("")
+        img_idx = 1
+        for filename, caption in section4_items:
+            src = section4_source / filename
+            dst = section4_dir / filename
+            if copy_if_exists(src, dst):
+                lines.append(f"{img_idx}. `4_market_architecture/{filename}` — {caption}")
+                img_idx += 1
         lines.append("")
 
     (docx_dir / "insert_plan.md").write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
@@ -219,16 +256,16 @@ def run_transformer_section(root: Path, quick: bool, device: torch.device) -> Di
 
     out_dir = make_dir(root / "transformer")
 
-    # 1) Positional Encoding heatmap
+    # 1) Тепловая карта позиционного кодирования
     d_model = 64
     pe_model = pr3.PositionalEncoding(d_model=d_model, max_len=96)
     pe = pe_model.pe[0, :96, :d_model].detach().cpu().numpy()
 
     plt.figure(figsize=(10, 5))
     im = plt.imshow(pe.T, aspect="auto", cmap="coolwarm")
-    plt.title("Positional Encoding Heatmap")
-    plt.xlabel("Token position")
-    plt.ylabel("Embedding dimension")
+    plt.title("Тепловая карта позиционного кодирования")
+    plt.xlabel("Позиция токена")
+    plt.ylabel("Размерность эмбеддинга")
     plt.colorbar(im)
     plt.tight_layout()
     plt.savefig(out_dir / "01_positional_encoding_heatmap.png", dpi=170)
@@ -250,9 +287,9 @@ def run_transformer_section(root: Path, quick: bool, device: torch.device) -> Di
 
     plt.figure(figsize=(6.6, 5.8))
     im = plt.imshow(weights, cmap="viridis")
-    plt.title("Self-Attention Weights (head 0)")
-    plt.xlabel("Key position")
-    plt.ylabel("Query position")
+    plt.title("Веса самовнимания (голова 0)")
+    plt.xlabel("Позиция ключа")
+    plt.ylabel("Позиция запроса")
     plt.colorbar(im)
     plt.tight_layout()
     plt.savefig(out_dir / "02_attention_weights_head0.png", dpi=170)
@@ -288,9 +325,9 @@ def run_transformer_section(root: Path, quick: bool, device: torch.device) -> Di
     plt.figure(figsize=(9, 5))
     plt.plot(xs, attn_curve.train_loss, marker="o", label="Attention")
     plt.plot(xs, rnn_curve.train_loss, marker="s", label="RNN")
-    plt.title("Attention vs RNN: train loss")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
+    plt.title("Attention и RNN: функция потерь на обучении")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Потери")
     plt.grid(alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -300,9 +337,9 @@ def run_transformer_section(root: Path, quick: bool, device: torch.device) -> Di
     plt.figure(figsize=(9, 5))
     plt.plot(xs, attn_curve.test_acc, marker="o", label="Attention")
     plt.plot(xs, rnn_curve.test_acc, marker="s", label="RNN")
-    plt.title("Attention vs RNN: test accuracy")
-    plt.xlabel("Epoch")
-    plt.ylabel("Accuracy")
+    plt.title("Attention и RNN: точность на тесте")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Точность")
     plt.ylim(0.45, 1.0)
     plt.grid(alpha=0.3)
     plt.legend()
@@ -401,10 +438,10 @@ def run_transformer_section(root: Path, quick: bool, device: torch.device) -> Di
         plt.figure(figsize=(8.2, 4.8))
         plt.plot(xs_cfg, loss_curve, marker="o")
         plt.title(
-            f"MiniTransformer train loss ({cfg['name']}: L={cfg['layers']}, d={cfg['d_model']}, h={cfg['heads']})"
+            f"MiniTransformer: потери на обучении ({cfg['name']}: L={cfg['layers']}, d={cfg['d_model']}, h={cfg['heads']})"
         )
-        plt.xlabel("Epoch")
-        plt.ylabel("Loss")
+        plt.xlabel("Эпоха")
+        plt.ylabel("Потери")
         plt.grid(alpha=0.3)
         plt.tight_layout()
         plt.savefig(out_dir / f"05_minitransformer_loss_{cfg['name']}.png", dpi=170)
@@ -413,10 +450,10 @@ def run_transformer_section(root: Path, quick: bool, device: torch.device) -> Di
         plt.figure(figsize=(8.2, 4.8))
         plt.plot(xs_cfg, acc_curve, marker="o")
         plt.title(
-            f"MiniTransformer test token accuracy ({cfg['name']}: L={cfg['layers']}, d={cfg['d_model']}, h={cfg['heads']})"
+            f"MiniTransformer: точность токенов на тесте ({cfg['name']}: L={cfg['layers']}, d={cfg['d_model']}, h={cfg['heads']})"
         )
-        plt.xlabel("Epoch")
-        plt.ylabel("Token accuracy")
+        plt.xlabel("Эпоха")
+        plt.ylabel("Точность токенов")
         plt.ylim(0.0, 1.0)
         plt.grid(alpha=0.3)
         plt.tight_layout()
@@ -427,8 +464,8 @@ def run_transformer_section(root: Path, quick: bool, device: torch.device) -> Di
     finals = [float(transformer_results[k]["final_acc"]) for k in labels]
     plt.figure(figsize=(7, 4.8))
     bars = plt.bar(labels, finals, color=["#4C72B0", "#55A868"])
-    plt.title("MiniTransformer: final token accuracy")
-    plt.ylabel("Accuracy")
+    plt.title("MiniTransformer: итоговая точность токенов")
+    plt.ylabel("Точность")
     plt.ylim(0.0, 1.0)
     for bar, value in zip(bars, finals):
         plt.text(bar.get_x() + bar.get_width() / 2, value + 0.02, f"{value:.3f}", ha="center")
@@ -564,9 +601,9 @@ def run_gan_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
                 fake_vis = G(torch.randn(1800, latent_dim, device=device)).cpu().numpy()
 
             plt.figure(figsize=(7.5, 7))
-            plt.scatter(real_vis[:, 0], real_vis[:, 1], s=8, alpha=0.35, label="Real", c="#4C72B0")
-            plt.scatter(fake_vis[:, 0], fake_vis[:, 1], s=8, alpha=0.35, label="Generated", c="#DD8452")
-            plt.title(f"GAN 2D distribution (epoch {epoch})")
+            plt.scatter(real_vis[:, 0], real_vis[:, 1], s=8, alpha=0.35, label="Реальные", c="#4C72B0")
+            plt.scatter(fake_vis[:, 0], fake_vis[:, 1], s=8, alpha=0.35, label="Сгенерированные", c="#DD8452")
+            plt.title(f"Двумерное распределение GAN (эпоха {epoch})")
             plt.xlabel("x1")
             plt.ylabel("x2")
             plt.legend(loc="upper right")
@@ -578,11 +615,11 @@ def run_gan_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
 
     xs = np.arange(1, epochs + 1)
     plt.figure(figsize=(9.2, 5.2))
-    plt.plot(xs, d_curve, label="Discriminator loss")
-    plt.plot(xs, g_curve, label="Generator loss")
-    plt.title("GAN training losses")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
+    plt.plot(xs, d_curve, label="Потери дискриминатора")
+    plt.plot(xs, g_curve, label="Потери генератора")
+    plt.title("Функции потерь GAN при обучении")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Потери")
     plt.grid(alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -590,11 +627,11 @@ def run_gan_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
     plt.close()
 
     plt.figure(figsize=(9.2, 5.2))
-    plt.plot(xs, d_real_curve, label="D(real)")
-    plt.plot(xs, d_fake_curve, label="D(fake)")
-    plt.title("Discriminator confidence dynamics")
-    plt.xlabel("Epoch")
-    plt.ylabel("Mean probability")
+    plt.plot(xs, d_real_curve, label="D(реальные)")
+    plt.plot(xs, d_fake_curve, label="D(сгенерированные)")
+    plt.title("Динамика уверенности дискриминатора")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Средняя вероятность")
     plt.ylim(0.0, 1.0)
     plt.grid(alpha=0.3)
     plt.legend()
@@ -607,11 +644,11 @@ def run_gan_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
 
     plt.figure(figsize=(8, 6.8))
     plt.hexbin(final_fake[:, 0], final_fake[:, 1], gridsize=45, cmap="magma", mincnt=1)
-    plt.title("Generated sample density (final epoch)")
+    plt.title("Плотность сгенерированных точек (финальная эпоха)")
     plt.xlabel("x1")
     plt.ylabel("x2")
     cb = plt.colorbar()
-    cb.set_label("Counts")
+    cb.set_label("Число точек")
     plt.tight_layout()
     plt.savefig(out_dir / "04_generated_density_hexbin.png", dpi=170)
     plt.close()
@@ -806,9 +843,9 @@ def run_gnn_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
     plt.figure(figsize=(9.2, 5.2))
     plt.plot(xs, gcn_loss_curve, label="GCN")
     plt.plot(xs, mlp_loss_curve, label="MLP baseline")
-    plt.title("Node classification: train loss")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
+    plt.title("Классификация узлов: функция потерь на обучении")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Потери")
     plt.grid(alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -818,9 +855,9 @@ def run_gnn_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
     plt.figure(figsize=(9.2, 5.2))
     plt.plot(xs, gcn_test_curve, label="GCN")
     plt.plot(xs, mlp_test_curve, label="MLP baseline")
-    plt.title("Node classification: test accuracy")
-    plt.xlabel("Epoch")
-    plt.ylabel("Accuracy")
+    plt.title("Классификация узлов: точность на тесте")
+    plt.xlabel("Эпоха")
+    plt.ylabel("Точность")
     plt.ylim(0.0, 1.0)
     plt.grid(alpha=0.3)
     plt.legend()
@@ -832,8 +869,8 @@ def run_gnn_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
     final_mlp = mlp_test_curve[-1]
     plt.figure(figsize=(6.6, 4.8))
     bars = plt.bar(["GCN", "MLP"], [final_gcn, final_mlp], color=["#4C72B0", "#C44E52"])
-    plt.title("Final accuracy comparison")
-    plt.ylabel("Accuracy")
+    plt.title("Сравнение итоговой точности")
+    plt.ylabel("Точность")
     plt.ylim(0.0, 1.0)
     for bar, value in zip(bars, [final_gcn, final_mlp]):
         plt.text(bar.get_x() + bar.get_width() / 2, value + 0.02, f"{value:.3f}", ha="center")
@@ -850,9 +887,9 @@ def run_gnn_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
 
     plt.figure(figsize=(7.2, 6.0))
     scatter = plt.scatter(coords[:, 0], coords[:, 1], c=labels_np, cmap="tab10", s=12, alpha=0.85)
-    plt.title("GCN node embeddings (PCA)")
-    plt.xlabel("PC1")
-    plt.ylabel("PC2")
+    plt.title("Эмбеддинги узлов GCN (PCA)")
+    plt.xlabel("Главная компонента 1")
+    plt.ylabel("Главная компонента 2")
     plt.colorbar(scatter)
     plt.tight_layout()
     plt.savefig(out_dir / "04_gcn_embeddings_pca.png", dpi=170)
@@ -883,7 +920,7 @@ def run_gnn_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
         cmap=plt.cm.tab10,
         alpha=0.95,
     )
-    plt.title("Synthetic graph structure (subgraph)")
+    plt.title("Структура синтетического графа (подграф)")
     plt.axis("off")
     plt.tight_layout()
     plt.savefig(out_dir / "05_graph_structure_subgraph.png", dpi=170)
@@ -892,9 +929,9 @@ def run_gnn_section(root: Path, quick: bool, device: torch.device) -> Dict[str, 
     degrees = np.array([d for _, d in sg.degree()], dtype=np.int32)
     plt.figure(figsize=(7.5, 4.8))
     plt.hist(degrees, bins=18, color="#55A868", edgecolor="white")
-    plt.title("Node degree distribution (subgraph)")
-    plt.xlabel("Degree")
-    plt.ylabel("Count")
+    plt.title("Распределение степеней узлов (подграф)")
+    plt.xlabel("Степень узла")
+    plt.ylabel("Число узлов")
     plt.grid(alpha=0.2)
     plt.tight_layout()
     plt.savefig(out_dir / "06_degree_distribution.png", dpi=170)

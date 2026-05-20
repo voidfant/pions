@@ -9,7 +9,7 @@ out = root / 'report_graphics/nir_extra/methodology'
 out.mkdir(parents=True, exist_ok=True)
 summary = json.loads((root / 'report_graphics/summary_metrics.json').read_text(encoding='utf-8'))
 
-# 1) Global pipeline diagram
+# 1) Общая схема исследовательского процесса
 fig, ax = plt.subplots(figsize=(12, 4.8))
 ax.axis('off')
 boxes = [
@@ -17,7 +17,7 @@ boxes = [
     (0.25, 0.30, 0.18, 0.40, 'Эксперименты\nи логирование'),
     (0.47, 0.30, 0.18, 0.40, 'Генерация\nграфиков'),
     (0.69, 0.30, 0.18, 0.40, 'НИР-анализ\nи интерпретация'),
-    (0.89, 0.30, 0.08, 0.40, 'DOCX\nотчет'),
+    (0.89, 0.30, 0.08, 0.40, 'Отчет\nDOCX'),
 ]
 for x,y,w,h,t in boxes:
     rect = plt.Rectangle((x,y),w,h,facecolor='#EAF2FF',edgecolor='#2E5AAC',linewidth=2)
@@ -25,18 +25,18 @@ for x,y,w,h,t in boxes:
     ax.text(x+w/2,y+h/2,t,ha='center',va='center',fontsize=11)
 for x1,x2 in [(0.21,0.25),(0.43,0.47),(0.65,0.69),(0.87,0.89)]:
     ax.annotate('',xy=(x2,0.5),xytext=(x1,0.5),arrowprops=dict(arrowstyle='->',lw=2,color='#333'))
-ax.set_title('Сквозной исследовательский pipeline',fontsize=14,pad=12)
+ax.set_title('Сквозной исследовательский процесс',fontsize=14,pad=12)
 plt.tight_layout(); plt.savefig(out/'01_research_pipeline.png',dpi=180); plt.close()
 
-# 2) Experimental design matrix
+# 2) Матрица дизайна экспериментов
 fig, ax = plt.subplots(figsize=(10.5, 5.4))
 ax.axis('off')
-rows = ['Transformer','GAN','GNN']
+rows = ['Трансформер','GAN','GNN']
 cols = ['Объект анализа','Ключевая метрика','Доп.диагностика','Риск']
 data = [
-    ['Последовательности','Test accuracy','Gap curves, sensitivity','Контекстная сложность'],
-    ['Распределения','Loss dynamics','Phase portrait, density diff','Mode collapse'],
-    ['Графовые узлы','Node accuracy','Confusion, classwise','Topology bias'],
+    ['Последовательности','Точность на тесте','Разрыв качества, чувствительность','Контекстная сложность'],
+    ['Распределения','Динамика потерь','Фазовый портрет, разность плотностей','Коллапс мод'],
+    ['Графовые узлы','Точность узлов','Матрица ошибок, точность по классам','Топологическое смещение'],
 ]
 from matplotlib.table import Table
 tab = Table(ax,bbox=[0,0,1,1])
@@ -54,8 +54,8 @@ ax.add_table(tab)
 ax.set_title('Матрица дизайна экспериментов',fontsize=14,pad=10)
 plt.tight_layout(); plt.savefig(out/'02_experiment_design_matrix.png',dpi=180); plt.close()
 
-# 3) Metric map radar-like polar
-labels = np.array(['Transformer\nAcc','GAN\nBalance','GNN\nAcc','Reproducibility','Interpretability'])
+# 3) Интегральная карта метрик
+labels = np.array(['Трансформер\nточность','GAN\nбаланс','GNN\nточность','Воспроизводимость','Интерпретируемость'])
 vals = np.array([
     float(summary['transformer']['mini_transformer']['small']['final_acc']),
     1.0 - abs(float(summary['gan']['final_d_real'])-float(summary['gan']['final_d_fake'])),
@@ -77,7 +77,7 @@ plt.tight_layout(); plt.savefig(out/'03_integral_metric_map.png',dpi=180); plt.c
 
 # 4) Threats to validity heatmap
 threats=['Внутренняя\nвалидность','Внешняя\nвалидность','Конструктивная\nвалидность','Статистическая\nвалидность']
-sections=['Transformer','GAN','GNN']
+sections=['Трансформер','GAN','GNN']
 M=np.array([
     [0.30,0.55,0.35,0.40],
     [0.45,0.60,0.40,0.50],
@@ -95,7 +95,7 @@ plt.colorbar(im,ax=ax,fraction=0.046,pad=0.04)
 plt.tight_layout(); plt.savefig(out/'04_validity_threats_heatmap.png',dpi=180); plt.close()
 
 # 5) Reproducibility checklist bar
-items=['Фиксация\nseed','Сохранение\nметрик','Версионирование\nкода','Автогенерация\nграфиков','DOCX\nсборка']
+items=['Фиксация\nseed','Сохранение\nметрик','Версионирование\nкода','Автогенерация\nграфиков','Сборка\nDOCX']
 scores=[1,1,0.9,1,1]
 fig,ax=plt.subplots(figsize=(8.6,4.8))
 ax.bar(items,scores,color=['#4C72B0','#55A868','#C44E52','#8172B2','#64B5CD'])
@@ -108,7 +108,7 @@ ax.grid(axis='y',alpha=0.25)
 plt.tight_layout(); plt.savefig(out/'05_reproducibility_checklist.png',dpi=180); plt.close()
 
 # 6) Compute footprint estimate
-stages=['Transformer\nexp','GAN\nexp','GNN\nexp','Post-analysis']
+stages=['Эксперимент\nTransformer','Эксперимент\nGAN','Эксперимент\nGNN','Пост-анализ']
 time=[35,40,30,15]
 fig,ax=plt.subplots(figsize=(8.6,4.8))
 ax.barh(stages,time,color='#4C72B0')

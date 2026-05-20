@@ -38,6 +38,26 @@ else:
 from common import ensure_dir, load_table, parse_utc, write_json
 
 LABEL_ORDER = ["DOWN", "FLAT", "UP"]
+LABEL_DISPLAY = {
+    "DOWN": "снижение",
+    "FLAT": "флэт",
+    "UP": "рост",
+}
+SPLIT_DISPLAY = {
+    "train": "обучение",
+    "val": "валидация",
+    "test": "тест",
+}
+FEATURE_GROUP_DISPLAY = {
+    "returns": "доходности",
+    "rolling_stats": "скользящие статистики",
+    "technical_indicators": "технические индикаторы",
+    "volume": "объем",
+    "calendar": "календарь",
+    "market_context": "рыночный контекст",
+    "ticker_identity": "идентификатор тикера",
+    "other": "прочие",
+}
 
 
 @dataclass
@@ -577,20 +597,20 @@ def save_dataset_plots(df_raw: pd.DataFrame, feature_cols: list[str], out_dir: P
     fig, ax = plt.subplots(figsize=(11.5, 4.8))
     ax.axis("off")
     boxes = [
-        (0.02, 0.36, 0.14, 0.28, "OHLCV\nbars"),
-        (0.20, 0.36, 0.16, 0.28, "Feature\nengineering"),
-        (0.40, 0.36, 0.15, 0.28, "Time split\ntrain/val/test"),
-        (0.59, 0.36, 0.14, 0.28, "Model\ntraining"),
-        (0.77, 0.36, 0.19, 0.28, "Metrics +\nresource analysis"),
+        (0.02, 0.36, 0.14, 0.28, "OHLCV\nряды"),
+        (0.20, 0.36, 0.16, 0.28, "Построение\nпризнаков"),
+        (0.40, 0.36, 0.15, 0.28, "Временное\nразбиение"),
+        (0.59, 0.36, 0.14, 0.28, "Обучение\nмоделей"),
+        (0.77, 0.36, 0.19, 0.28, "Метрики и\nресурсы"),
     ]
     for x, y, w, h, text in boxes:
         ax.add_patch(plt.Rectangle((x, y), w, h, facecolor="#EAF2FF", edgecolor="#2E5AAC", linewidth=2))
         ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=11)
     for x1, x2 in [(0.16, 0.20), (0.36, 0.40), (0.55, 0.59), (0.73, 0.77)]:
         ax.annotate("", xy=(x2, 0.50), xytext=(x1, 0.50), arrowprops=dict(arrowstyle="->", lw=2, color="#333333"))
-    ax.text(0.20, 0.16, "ret/volatility/RSI/MACD/Bollinger/market context", fontsize=9, ha="left")
-    ax.text(0.40, 0.16, "future leakage is blocked by chronological splits", fontsize=9, ha="left")
-    ax.set_title("Pipeline эксперимента раздела 4", fontsize=14, pad=10)
+    ax.text(0.20, 0.16, "доходности / волатильность / RSI / MACD / Bollinger / контекст рынка", fontsize=9, ha="left")
+    ax.text(0.40, 0.16, "утечка будущего блокируется хронологическим разбиением", fontsize=9, ha="left")
+    ax.set_title("Конвейер эксперимента раздела 4", fontsize=14, pad=10)
     fig.tight_layout()
     fig.savefig(plots / "4_00_market_experiment_pipeline.png", dpi=180)
     plt.close(fig)
@@ -598,14 +618,16 @@ def save_dataset_plots(df_raw: pd.DataFrame, feature_cols: list[str], out_dir: P
     split_counts = df_raw["split"].value_counts().reindex(["train", "val", "test"]).dropna()
     label_counts = pd.crosstab(df_raw["split"], df_raw["label"]).reindex(["train", "val", "test"])
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.7))
-    split_counts.plot(kind="bar", ax=axes[0], color="#4C72B0")
+    split_counts_display = split_counts.rename(index=SPLIT_DISPLAY)
+    label_counts_display = label_counts.rename(index=SPLIT_DISPLAY, columns=LABEL_DISPLAY)
+    split_counts_display.plot(kind="bar", ax=axes[0], color="#4C72B0")
     axes[0].set_title("Размеры временных разбиений")
-    axes[0].set_xlabel("Split")
+    axes[0].set_xlabel("Разбиение")
     axes[0].set_ylabel("Число объектов")
     axes[0].grid(axis="y", alpha=0.25)
-    label_counts.plot(kind="bar", stacked=True, ax=axes[1], color=["#C44E52", "#55A868", "#4C72B0"])
-    axes[1].set_title("Распределение классов по split")
-    axes[1].set_xlabel("Split")
+    label_counts_display.plot(kind="bar", stacked=True, ax=axes[1], color=["#C44E52", "#55A868", "#4C72B0"])
+    axes[1].set_title("Распределение классов по разбиениям")
+    axes[1].set_xlabel("Разбиение")
     axes[1].set_ylabel("Число объектов")
     axes[1].grid(axis="y", alpha=0.25)
     fig.tight_layout()
@@ -614,7 +636,7 @@ def save_dataset_plots(df_raw: pd.DataFrame, feature_cols: list[str], out_dir: P
 
     groups = feature_group_counts(feature_cols)
     fig, ax = plt.subplots(figsize=(9.4, 5.0))
-    names = list(groups.keys())
+    names = [FEATURE_GROUP_DISPLAY.get(k, k) for k in groups.keys()]
     vals = list(groups.values())
     ax.barh(names, vals, color="#55A868")
     ax.set_title("Группы признаков market-only датасета")
@@ -632,7 +654,7 @@ def save_dataset_plots(df_raw: pd.DataFrame, feature_cols: list[str], out_dir: P
         ax.plot(g["timestamp_utc"], np.cumsum(g["ret_h"].astype(float)), label=str(ticker), alpha=0.85)
     ax.set_title("Накопленная будущая доходность ret_h по тикерам")
     ax.set_xlabel("Время")
-    ax.set_ylabel("Cumulative ret_h")
+    ax.set_ylabel("Накопленная ret_h")
     ax.grid(alpha=0.25)
     ax.legend()
     fig.tight_layout()
@@ -642,11 +664,11 @@ def save_dataset_plots(df_raw: pd.DataFrame, feature_cols: list[str], out_dir: P
     fig, ax = plt.subplots(figsize=(11, 4.8))
     ax.axis("off")
     rows = [
-        ("LogisticRegression", "x -> scaler -> linear logits", "fast baseline, no temporal memory"),
-        ("HistGradientBoosting", "x -> boosted decision trees", "nonlinear tabular interactions"),
-        ("TorchMLP", "x -> dense layers -> logits", "learned nonlinear tabular representation"),
-        ("TemporalCNN", "window[t-11:t] -> 1D convolutions", "local temporal motifs"),
-        ("TinyTransformer", "window[t-11:t] -> self-attention", "adaptive temporal dependencies"),
+        ("LogisticRegression", "x -> нормализация -> линейные логиты", "быстрый baseline без памяти"),
+        ("HistGradientBoosting", "x -> бустинг решающих деревьев", "нелинейные табличные связи"),
+        ("TorchMLP", "x -> плотные слои -> логиты", "обучаемое табличное представление"),
+        ("TemporalCNN", "окно[t-11:t] -> 1D-свертки", "локальные временные мотивы"),
+        ("TinyTransformer", "окно[t-11:t] -> self-attention", "адаптивные временные зависимости"),
     ]
     for i, (name, flow, note) in enumerate(rows):
         y = 0.86 - i * 0.17
@@ -670,9 +692,9 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(10.2, 5.2))
     x = np.arange(len(df))
     width = 0.26
-    ax.bar(x - width, df["balanced_accuracy"], width, label="Balanced accuracy", color=colors[0])
-    ax.bar(x, df["macro_f1"], width, label="Macro F1", color=colors[1])
-    ax.bar(x + width, df["top10_hit_rate"], width, label="Top-10% hit-rate", color=colors[2])
+    ax.bar(x - width, df["balanced_accuracy"], width, label="Сбалансированная accuracy", color=colors[0])
+    ax.bar(x, df["macro_f1"], width, label="Macro-F1", color=colors[1])
+    ax.bar(x + width, df["top10_hit_rate"], width, label="Hit-rate top-10%", color=colors[2])
     ax.set_xticks(x)
     ax.set_xticklabels(df["model"], rotation=18, ha="right")
     ax.set_ylim(0, 1)
@@ -689,8 +711,8 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     for _, row in df.iterrows():
         ax.annotate(row["model"], (row["train_seconds"], row["balanced_accuracy"]), xytext=(6, 4), textcoords="offset points", fontsize=9)
     ax.set_xscale("log")
-    ax.set_xlabel("Время обучения, сек. (log scale)")
-    ax.set_ylabel("Balanced accuracy")
+    ax.set_xlabel("Время обучения, сек. (лог. шкала)")
+    ax.set_ylabel("Сбалансированная accuracy")
     ax.set_title("Компромисс качество / вычислительная стоимость")
     ax.grid(alpha=0.25)
     fig.tight_layout()
@@ -711,7 +733,7 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     df3 = df.sort_values("params_count")
     ax.barh(df3["model"], df3["params_count"], color="#55A868")
     ax.set_xscale("log")
-    ax.set_xlabel("Число обучаемых параметров / оценка сложности (log scale)")
+    ax.set_xlabel("Число обучаемых параметров / оценка сложности (лог. шкала)")
     ax.set_title("Параметрическая сложность моделей")
     ax.grid(axis="x", alpha=0.25)
     fig.tight_layout()
@@ -725,8 +747,8 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     im = ax.imshow(cm, cmap="Blues")
     ax.set_xticks(np.arange(len(labels)))
     ax.set_yticks(np.arange(len(labels)))
-    ax.set_xticklabels(labels)
-    ax.set_yticklabels(labels)
+    ax.set_xticklabels([LABEL_DISPLAY.get(x, x) for x in labels])
+    ax.set_yticklabels([LABEL_DISPLAY.get(x, x) for x in labels])
     ax.set_xlabel("Предсказание")
     ax.set_ylabel("Истинный класс")
     ax.set_title(f"Матрица ошибок лучшей модели: {best.name}")
@@ -743,10 +765,10 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     if len(best.score) > 2 and np.std(best.score) > 0:
         coef = np.polyfit(best.score, best.ret_h, 1)
         xx = np.linspace(best.score.min(), best.score.max(), 120)
-        ax.plot(xx, coef[0] * xx + coef[1], color="#C44E52", lw=2, label=f"corr={best.score_ret_corr:.3f}")
+        ax.plot(xx, coef[0] * xx + coef[1], color="#C44E52", lw=2, label=f"корр.={best.score_ret_corr:.3f}")
         ax.legend()
     ax.set_title(f"Связь score и будущей доходности: {best.name}")
-    ax.set_xlabel("score = P(UP) - P(DOWN)")
+    ax.set_xlabel("score = P(рост) - P(снижение)")
     ax.set_ylabel("ret_h")
     ax.grid(alpha=0.25)
     fig.tight_layout()
@@ -759,7 +781,7 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
         signal = np.where(r.score > tau, 1.0, np.where(r.score < -tau, -1.0, 0.0))
         equity = np.cumsum(signal * r.ret_h - 0.0005 * np.abs(signal))
         ax.plot(equity, label=r.name, linewidth=1.7)
-    ax.set_title("Equity-кривые top-10% сигналов по архитектурам")
+    ax.set_title("Кривые капитала для top-10% сигналов по архитектурам")
     ax.set_xlabel("Индекс тестового события")
     ax.set_ylabel("Накопленный PnL")
     ax.grid(alpha=0.25)
@@ -770,10 +792,11 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(10.0, 5.2))
     cols = ["accuracy", "balanced_accuracy", "macro_f1", "top10_hit_rate", "score_ret_corr"]
+    col_display = ["Accuracy", "Сбаланс. accuracy", "Macro-F1", "Hit-rate top-10%", "Корр. score/ret_h"]
     heat = df.set_index("model")[cols].values.astype(float)
     im = ax.imshow(heat, cmap="YlGnBu", aspect="auto")
     ax.set_xticks(np.arange(len(cols)))
-    ax.set_xticklabels(cols, rotation=20, ha="right")
+    ax.set_xticklabels(col_display, rotation=20, ha="right")
     ax.set_yticks(np.arange(len(df)))
     ax.set_yticklabels(df["model"])
     for i in range(heat.shape[0]):
@@ -791,9 +814,9 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
         for name, hist in history_rows:
             vals = hist.get("val_balanced_accuracy", [])
             ax.plot(np.arange(1, len(vals) + 1), vals, marker="o", label=name)
-        ax.set_title("Validation balanced accuracy по эпохам")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Balanced accuracy")
+        ax.set_title("Сбалансированная accuracy на валидации по эпохам")
+        ax.set_xlabel("Эпоха")
+        ax.set_ylabel("Сбалансированная accuracy")
         ax.set_ylim(0, 1)
         ax.grid(alpha=0.25)
         ax.legend()
@@ -805,9 +828,9 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
         for name, hist in history_rows:
             vals = hist.get("train_loss", [])
             ax.plot(np.arange(1, len(vals) + 1), vals, marker="o", label=name)
-        ax.set_title("Training loss нейросетевых моделей")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Cross-entropy loss")
+        ax.set_title("Функция потерь нейросетевых моделей на обучении")
+        ax.set_xlabel("Эпоха")
+        ax.set_ylabel("Кросс-энтропия")
         ax.grid(alpha=0.25)
         ax.legend()
         fig.tight_layout()
@@ -817,9 +840,9 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(9.6, 5.0))
     for r in results:
         ax.hist(r.score, bins=40, alpha=0.35, label=r.name, density=True)
-    ax.set_title("Распределение score = P(UP) - P(DOWN)")
+    ax.set_title("Распределение score = P(рост) - P(снижение)")
     ax.set_xlabel("Score")
-    ax.set_ylabel("Density")
+    ax.set_ylabel("Плотность")
     ax.grid(alpha=0.25)
     ax.legend(fontsize=8)
     fig.tight_layout()
@@ -832,7 +855,7 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     ax.bar(x, top_df["top10_cum_return"], color=["#55A868" if v >= 0 else "#C44E52" for v in top_df["top10_cum_return"]])
     ax.axhline(0, color="black", linewidth=1)
     ax.set_title("PnL top-10% наиболее уверенных сигналов")
-    ax.set_ylabel("Cumulative PnL")
+    ax.set_ylabel("Накопленный PnL")
     ax.set_xticks(x)
     ax.set_xticklabels(top_df["model"], rotation=18, ha="right")
     ax.grid(axis="y", alpha=0.25)
@@ -847,7 +870,7 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
     ax.plot(roll.values, color="#C44E52")
     ax.set_title(f"Скользящая доля ошибок лучшей модели: {best.name}")
     ax.set_xlabel("Индекс тестового события")
-    ax.set_ylabel("Rolling error rate, window=120")
+    ax.set_ylabel("Скользящая доля ошибок, окно=120")
     ax.grid(alpha=0.25)
     fig.tight_layout()
     fig.savefig(plots / "4_17_best_model_rolling_error.png", dpi=180)
@@ -868,7 +891,10 @@ def save_plots(results: list[ModelResult], out_dir: Path) -> None:
         vals = np.array([row[m] for m in radar_metrics], dtype=float)
         vals = np.r_[vals, vals[0]]
         ax.plot(angles, vals, linewidth=1.6, label=row["model"])
-    ax.set_thetagrids(angles[:-1] * 180 / np.pi, ["Bal.acc", "Macro-F1", "Hit-rate", "Train eff.", "Infer eff.", "Param eff."])
+    ax.set_thetagrids(
+        angles[:-1] * 180 / np.pi,
+        ["Сбаланс. acc.", "Macro-F1", "Hit-rate", "Эфф. обучения", "Эфф. инференса", "Эфф. параметров"],
+    )
     ax.set_ylim(0, 1)
     ax.set_title("Интегральный профиль качества и эффективности")
     ax.legend(loc="upper right", bbox_to_anchor=(1.35, 1.10), fontsize=8)
