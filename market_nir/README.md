@@ -57,6 +57,29 @@ Run from repo root.
 ./venv/bin/python market_nir/src/05_train_distilbert.py --epochs 6 --batch-size 16 --patience 2
 ```
 
+## Market-only pipeline (no news, OHLCV only)
+
+```bash
+./venv/bin/python market_nir/src/13_build_market_only_dataset.py \
+  --market market_nir/data/raw/market_bars.csv \
+  --horizon 4h \
+  --k 0.5 \
+  --vol-window 48
+
+./venv/bin/python market_nir/src/14_train_market_model.py --model-type hgb
+
+./venv/bin/python market_nir/src/07_backtest_event.py \
+  --predictions market_nir/artifacts/predictions/market_only_hgb_predictions.parquet \
+  --split test \
+  --tau-quantile 0.9
+
+./venv/bin/python market_nir/src/10_monte_carlo_test.py \
+  --predictions market_nir/artifacts/predictions/market_only_hgb_predictions.parquet \
+  --split test \
+  --tau 0.0 \
+  --n-runs 3000
+```
+
 ## Main scripts
 
 - `01_prepare_events.py`: basic cleaning and dedup for text events
@@ -71,6 +94,8 @@ Run from repo root.
 - `09_report_pack.py`: collect metrics and plots for report integration
 - `11_download_gdelt.py`: downloader for large GDELT corpora (target by GB)
 - `12_build_gdelt_events.py`: convert extracted GDELT GKG files into `text_events.csv`
+- `13_build_market_only_dataset.py`: build time-series features and labels from market OHLCV only
+- `14_train_market_model.py`: train market-only classifier (`hgb` or `logreg`)
 
 ## Input contracts
 
