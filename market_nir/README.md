@@ -186,6 +186,7 @@ Outputs:
 - `15_download_market_data_yf.py`: download extended OHLCV history from Yahoo Finance
 - `16_walkforward_market_model.py`: rolling walk-forward train/test predictions with past-window signal calibration
 - `18_architecture_comparison.py`: compare linear, boosting, MLP, TemporalCNN and TinyTransformer architectures for section 4
+- `18_architecture_core_listing.py`: compact report-listing version of the architecture comparison logic without plotting/DOCX code
 - `19_build_section4_docx.py`: rebuild the course document with the detailed market architecture section
 
 ## Input contracts
